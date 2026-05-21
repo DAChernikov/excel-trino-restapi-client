@@ -8,17 +8,19 @@ Python-генератор Excel-клиента для подключения к 
 
 Проект разделен на два уровня:
 
-- Cross-platform уровень: модель шаблона, M-код, валидация контракта, тесты и `openpyxl` backend для проверки UI-книги на macOS/Linux/Windows.
-- Windows Excel уровень: COM backend через `pywin32`, который создает/обновляет книгу и встраивает реальные Power Query-запросы через Excel API.
+- Cross-platform уровень: модель шаблона, M-код, валидация контракта, тесты и `openpyxl` backend для создания UI-книги на macOS/Linux/Windows.
+- Windows Excel уровень: COM backend через `pywin32`, который открывает уже созданную `openpyxl`-книгу и встраивает реальные Power Query-запросы через Excel API.
 
-Это значит, что на macOS можно нормально разрабатывать и тестировать структуру проекта, но финальную проверку Power Query нужно делать на Windows с desktop Excel.
+Единый источник UI - `openpyxl_backend.py`. COM не рисует интерфейс, не форматирует листы и не создает config/query/help таблицы. Он делает только то, чего не умеет `openpyxl`: `Workbook.Queries.Add(...)`, подключение `Microsoft.Mashup.OleDb.1` и попытку создать таблицу результата `tblTrinoResult`.
+
+Это значит, что `trino-excel-client create --backend openpyxl ...` и `trino-excel-client create --backend com ...` используют один и тот же UI. Во втором случае в книгу дополнительно добавляются Power Query-запросы.
 
 ## Что входит в MVP
 
 - Генерация новой книги Excel с готовым клиентом.
 - Установка клиента в существующую книгу без удаления пользовательских листов.
 - Cross-platform UI preview backend для macOS/Linux через `openpyxl`.
-- Windows COM backend для настоящего встраивания Power Query.
+- Windows COM backend для настоящего встраивания Power Query в тот же UI-шаблон.
 - Форматированные листы:
   - `Trino Config` - параметры подключения и extra credentials.
   - `Trino Query` - SQL-запрос и таблица результата.
@@ -114,6 +116,8 @@ pytest
 trino-excel-client create --backend com --output .\build\Trino_REST_Client.xlsx --overwrite
 ```
 
+Эта команда сначала создает UI-книгу через `openpyxl`, затем открывает ее в desktop Excel через COM и добавляет Power Query-запросы.
+
 Для отладки с видимым Excel:
 
 ```bat
@@ -129,6 +133,8 @@ trino-excel-client create --backend com --output .\build\Trino_REST_Client.xlsx 
 ```bat
 trino-excel-client install --backend com --workbook .\reports\MyWorkbook.xlsx --output .\build\MyWorkbook_With_Trino.xlsx --overwrite
 ```
+
+Эта команда сначала добавляет UI-листы через `openpyxl`, затем открывает итоговую книгу через COM и встраивает Power Query.
 
 Сделать cross-platform UI-preview установку на macOS/Linux:
 
@@ -263,6 +269,7 @@ X-Trino-Extra-Credential: gp-user=your_login,gp-password=your_password
 ## Ограничения MVP
 
 - `openpyxl` backend нужен для разработки, тестов и UI-preview. Он не встраивает Power Query.
+- `com` backend не отвечает за UI. Если внешний вид нужно менять, править нужно `openpyxl_backend.py` и тесты, а не `excel_com.py`.
 - Автоматическое создание output table `tblTrinoResult` зависит от версии Excel и провайдера `Microsoft.Mashup.OleDb.1`. Если этот шаг не сработает, Power Query-запросы все равно будут добавлены, а `TrinoResult` можно загрузить вручную через `Queries & Connections -> Load To`.
 - M-код пока возвращает значения Trino без явного приведения типов из `columns[type]`; это хороший следующий шаг после проверки базового обмена.
 
