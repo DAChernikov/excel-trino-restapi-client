@@ -1,72 +1,69 @@
 # Trino Excel Client
 
-Python-генератор Excel-клиента для подключения к Trino REST API через Power Query M-код.
+Trino Excel Client помогает пользователям Excel подключаться к Trino через REST API и Power Query без ручной сборки M-кода. Приложение создает новую Excel-книгу или добавляет Trino-клиент в уже существующую книгу.
 
-Цель проекта: дать пользователям Excel готовую книгу или встраиваемый модуль, где подключение к Trino настраивается через понятные таблицы, SQL пишется прямо в Excel, а результат загружается через `Данные -> Обновить все`.
+## Что пользователь получает
 
-## Архитектура проекта
+В книге появляются отдельные листы:
 
-Проект разделен на два уровня:
+- `Trino Config` - настройки подключения, лимиты и extraCredentials.
+- `Trino Query` - поле для SQL-запроса.
+- `Trino Result` - результат запроса.
+- `Trino Help` - короткие подсказки внутри книги.
 
-- Cross-platform уровень: модель шаблона, M-код, валидация контракта, тесты и `openpyxl` backend для создания UI-книги на macOS/Linux/Windows.
-- Windows Excel уровень: COM backend через `pywin32`, который открывает уже созданную `openpyxl`-книгу и встраивает реальные Power Query-запросы через Excel API.
+В Windows-версии дополнительно встраиваются Power Query-запросы для обращения к Trino REST API.
 
-Единый источник UI - `openpyxl_backend.py`. COM не рисует интерфейс, не форматирует листы и не создает config/query/help таблицы. Он делает только то, чего не умеет `openpyxl`: `Workbook.Queries.Add(...)`, подключение `Microsoft.Mashup.OleDb.1` и попытку создать таблицу результата `tblTrinoResult`.
+## Поддерживаемые платформы
 
-Это значит, что `trino-excel-client create --backend openpyxl ...` и `trino-excel-client create --backend com ...` используют один и тот же UI. Во втором случае в книгу дополнительно добавляются Power Query-запросы.
+### Windows
 
-## Что входит в MVP
+Windows - основная платформа для рабочей книги с Power Query.
 
-- Генерация новой книги Excel с готовым клиентом.
-- Установка клиента в существующую книгу без удаления пользовательских листов.
-- Cross-platform UI preview backend для macOS/Linux через `openpyxl`.
-- Windows COM backend для настоящего встраивания Power Query в тот же UI-шаблон.
-- Форматированные листы:
-  - `Trino Config` - параметры подключения и extra credentials.
-  - `Trino Query` - SQL-запрос и таблица результата.
-  - `Trino Help` - краткая инструкция для пользователя.
-- Power Query-запросы:
-  - `qConfig`
-  - `qSqlText`
-  - `qExtraCredentials`
-  - `fnTrinoRestQuery`
-  - `TrinoResult`
-- Поддержка Basic Auth через HTTP header.
-- Поддержка `X-Trino-Extra-Credential`.
-- Optional headers `X-Trino-Catalog` и `X-Trino-Schema`.
-- Retry для `429`, `502`, `503`, `504`.
+Нужно:
 
-## Требования
-
-Для разработки UI и тестов на macOS/Linux:
-
-- Python 3.10+.
-- `openpyxl`.
-- `pytest`.
-
-Для полной генерации рабочей книги с Power Query:
-
-- Windows.
 - Desktop Microsoft Excel 2016+ с Power Query.
-- Python 3.10+.
-- `pywin32`.
 - Доступ к Trino REST API.
-- Basic Auth для Trino.
-- Если источник требует delegated credentials, нужны extra credentials, например `gp-user` и `gp-password`.
+- Учетные данные Basic Auth для Trino.
+- При необходимости extraCredentials для источников, например `gp-user` / `gp-password`.
 
-> Важно: генерация использует Excel COM через `pywin32`, поэтому запускать команды нужно на Windows-машине с установленным Excel.
+Рекомендуемый пользовательский вход - GUI-приложение `Trino Excel Client`.
 
-## Установка для разработки
+CLI тоже доступен:
 
-macOS/Linux:
+```bat
+trino-excel-client create --backend com --output .\build\Trino_REST_Client.xlsx --overwrite
+```
+
+### macOS / Linux / Unix
+
+На Unix-платформах можно:
+
+- создавать UI-preview книгу без Power Query;
+- проверять внешний вид шаблона;
+- запускать GUI в dry-run режиме;
+- тестировать сценарии создания/встраивания без обращения к Excel COM.
+
+Power Query-встраивание через COM доступно только на Windows desktop Excel.
 
 ```bash
-python3 -m venv .venv
+trino-excel-client create --backend openpyxl --output ./build/Trino_UI_Preview.xlsx --overwrite
+```
+
+GUI dry-run:
+
+```bash
+trino-excel-client gui --dry-run
+```
+
+## Установка из исходников
+
+```bash
+python -m venv .venv
 source .venv/bin/activate
 pip install -e ".[test]"
 ```
 
-Windows:
+Windows PowerShell / cmd:
 
 ```bat
 python -m venv .venv
@@ -74,209 +71,283 @@ python -m venv .venv
 pip install -e ".[test]"
 ```
 
-## Тестирование на macOS/Linux
-
-Проверить контракт проекта без Excel:
+Проверка:
 
 ```bash
 trino-excel-client validate
-```
-
-Запустить тесты:
-
-```bash
 pytest
 ```
 
-Создать UI-preview книгу без Power Query:
+## Создать новую книгу
 
-```bash
-trino-excel-client create --backend openpyxl --output ./build/Trino_UI_Preview.xlsx --overwrite
-```
-
-В эту книгу будут добавлены листы и таблицы для проверки пользовательского интерфейса. Power Query в ней не будет, потому что `openpyxl` не умеет создавать Excel Power Query объекты.
-
-## Тестирование на Windows
-
-Проверить контракт проекта:
-
-```bat
-trino-excel-client validate
-```
-
-Запустить unit-тесты:
-
-```bat
-pytest
-```
-
-Создать настоящую книгу с Power Query через Excel COM:
+Windows, рабочая книга с Power Query:
 
 ```bat
 trino-excel-client create --backend com --output .\build\Trino_REST_Client.xlsx --overwrite
 ```
 
-Эта команда сначала создает UI-книгу через `openpyxl`, затем открывает ее в desktop Excel через COM и добавляет Power Query-запросы.
-
-Для отладки с видимым Excel:
+Windows с видимым Excel для диагностики:
 
 ```bat
 trino-excel-client create --backend com --output .\build\Trino_REST_Client.xlsx --overwrite --visible
 ```
 
-`--backend auto` использует `com` на Windows и `openpyxl` на остальных ОС.
+macOS/Linux, только UI-preview:
+
+```bash
+trino-excel-client create --backend openpyxl --output ./build/Trino_UI_Preview.xlsx --overwrite
+```
 
 ## Встроить клиент в существующую книгу
 
-Сохранить копию существующей книги с добавленным клиентом на Windows:
+Windows, сохранить копию с Trino-клиентом:
 
 ```bat
-trino-excel-client install --backend com --workbook .\reports\MyWorkbook.xlsx --output .\build\MyWorkbook_With_Trino.xlsx --overwrite
+trino-excel-client install --backend com --workbook .\reports\Workbook.xlsx --output .\build\Workbook_With_Trino.xlsx --overwrite
 ```
 
-Эта команда сначала добавляет UI-листы через `openpyxl`, затем открывает итоговую книгу через COM и встраивает Power Query.
+Windows, обновить книгу на месте:
 
-Сделать cross-platform UI-preview установку на macOS/Linux:
+```bat
+trino-excel-client install --backend com --workbook .\reports\Workbook.xlsx
+```
+
+macOS/Linux, добавить только UI-листы:
 
 ```bash
-trino-excel-client install --backend openpyxl --workbook ./reports/MyWorkbook.xlsx --output ./build/MyWorkbook_With_Trino_UI.xlsx --overwrite
+trino-excel-client install --backend openpyxl --workbook ./reports/Workbook.xlsx --output ./build/Workbook_With_Trino_UI.xlsx --overwrite
 ```
 
-Обновить существующую книгу на месте на Windows:
+При встраивании существующие пользовательские листы сохраняются. Trino-клиент добавляет свои листы отдельно. Лист `Trino Query` не используется для результата, поэтому повторное обновление данных не должно стирать SQL-ввод.
 
-```bat
-trino-excel-client install --backend com --workbook .\reports\MyWorkbook.xlsx
-```
+## Как работать в Excel
 
-Если в книге уже есть листы с похожими именами, можно поменять префикс:
-
-```bat
-trino-excel-client install --backend com --workbook .\reports\MyWorkbook.xlsx --sheet-prefix "Data Client"
-```
-
-## Как пользоваться в Excel
-
-1. Откройте книгу.
+1. Откройте созданную книгу.
 2. На листе `Trino Config` заполните:
    - `trino_base_url`
    - `trino_user`
    - `trino_password`
-   - при необходимости `trino_catalog` и `trino_schema`
-3. В таблице `tblExtraCredentials` включите нужные строки через `enabled = TRUE`.
-4. На листе `Trino Query` напишите SQL в таблице `tblTrinoSql`.
+   - если нужно: `trino_catalog`, `trino_schema`
+3. Если нужны delegated credentials, заполните `tblExtraCredentials`.
+4. На листе `Trino Query` введите SQL в таблицу `tblTrinoSql`.
 5. Нажмите `Данные -> Обновить все`.
+6. Результат появится на листе `Trino Result`.
 
-При первом обращении Excel может спросить уровень доступа к Trino host. Обычно нужно выбрать `Anonymous`, потому что Basic Auth передается самим M-кодом через HTTP header.
+При первом обращении Excel может спросить credentials/privacy level для Trino host. Обычно нужно выбрать `Anonymous`, потому что Basic Auth передается M-кодом через HTTP header.
 
-## Ручная отправка SQL через Trino REST API
+## Лимиты и BigData
 
-Если генератор недоступен или нужно быстро проверить идею в обычной книге, клиент можно собрать вручную через Power Query. Логика та же: в книге создаются три Excel-таблицы с параметрами, а в Power Query вставляется большой M-код из [src/trino_excel_client/m_code.py](/Users/danielchernikov/Documents/Codex/2026-05-21/excel-trino-restapi-m-ui-excel/src/trino_excel_client/m_code.py).
+Excel не подходит для прямой загрузки миллионов или миллиардов строк. Поэтому в шаблоне есть два защитных механизма.
 
-### 1. Создать таблицу параметров
+| Параметр | По умолчанию | Что делает |
+| --- | --- | --- |
+| `default_query_limit_rows` | `100000` | M-код добавляет внешний `LIMIT` вокруг SQL |
+| `apply_default_query_limit` | `TRUE` | Включает или отключает внешний `LIMIT` |
+| `max_result_rows` | `100000` | Жесткий лимит строк, разрешенных для загрузки в Excel |
+| `result_overflow_behavior` | `error` | `error` останавливает загрузку, `truncate` загружает первые строки |
 
-На листе `Trino Config` создайте Excel Table с именем `tblTrinoConfig`. Заголовки могут быть русскими, потому что M-код читает первые две колонки по позиции:
+По умолчанию ваш SQL отправляется в Trino так:
 
-| Параметр | Значение | Обязателен | Комментарий |
-| --- | --- | --- | --- |
-| trino_base_url | https://trino.example.com | да | URL координатора Trino без /v1/statement |
-| trino_user | CHANGE_ME | да | Пользователь Trino |
-| trino_password | CHANGE_ME | да | Пароль Trino |
-| trino_catalog |  | нет | Catalog, если нужен |
-| trino_schema |  | нет | Schema, если нужна |
-| source_name | excel_power_query | нет | X-Trino-Source |
-| time_zone | Europe/Moscow | нет | X-Trino-Time-Zone |
-| request_timeout_minutes | 5 | нет | Таймаут HTTP-запроса |
-| polling_delay_seconds | 0.2 | нет | Пауза между nextUri |
-| max_retry_count | 5 | нет | Retry для 429/502/503/504 |
-| retry_base_delay_seconds | 0.5 | нет | Базовая retry-задержка |
+```sql
+select *
+from (
+    <ваш SQL>
+) as excel_trino_client_query
+limit 100000
+```
 
-### 2. Создать таблицу extraCredentials
+Если нужен полный контроль над SQL, поставьте:
 
-Создайте Excel Table с именем `tblExtraCredentials`. M-код читает первые пять колонок по позиции:
+```text
+apply_default_query_limit = FALSE
+```
 
-| Включено | Тип логина | Логин | Тип пароля | Пароль | Комментарий |
-| --- | --- | --- | --- | --- | --- |
-| TRUE | gp-user | your_login | gp-password | your_password | Пример Greenplum |
+Оставьте `max_result_rows` включенным. Это последний защитный слой от случайной выгрузки слишком большого результата.
 
-Если extraCredentials не нужны, оставьте строки выключенными через `FALSE`.
+Практические рекомендации:
 
-### 3. Создать таблицу SQL
-
-Создайте Excel Table с именем `tblTrinoSql`. Нужна минимум одна колонка:
-
-| SQL запрос |
-| --- |
-| select * from your_catalog.your_schema.your_table limit 100 |
-
-Для большого SQL можно вставить весь запрос в одну ячейку. Можно также разбить SQL на несколько строк таблицы: `qSqlText` склеит непустые строки через перенос строки.
-
-### 4. Вставить M-код в Power Query
-
-В Excel откройте `Данные -> Получить данные -> Из других источников -> Пустой запрос`, затем `Advanced Editor`.
-
-Создайте пять запросов с точными именами:
-
-- `qConfig`
-- `qSqlText`
-- `qExtraCredentials`
-- `fnTrinoRestQuery`
-- `TrinoResult`
-
-Для каждого запроса вставьте соответствующее значение из словаря `M_QUERIES` в [m_code.py](/Users/danielchernikov/Documents/Codex/2026-05-21/excel-trino-restapi-m-ui-excel/src/trino_excel_client/m_code.py). Вставлять нужно содержимое строки без внешних Python-кавычек `r''' ... '''`.
-
-### 5. Загрузить результат
-
-После создания запроса `TrinoResult` выберите `Close & Load To...` и загрузите результат как таблицу на лист `Trino Query`.
-
-При первом обращении Excel может спросить credentials для Trino host. Обычно нужно выбрать `Anonymous`, потому что Basic Auth уходит внутри M-кода через HTTP header `Authorization`.
-
-Заполняемые параметры:
-
-- `trino_base_url`: базовый URL Trino coordinator, например `https://trino.example.com`.
-- `trino_user`: пользователь Basic Auth.
-- `trino_password`: пароль Basic Auth.
-- `trino_catalog`: опционально, попадет в `X-Trino-Catalog`.
-- `trino_schema`: опционально, попадет в `X-Trino-Schema`.
-- `source_name`: значение `X-Trino-Source`.
-- `time_zone`: значение `X-Trino-Time-Zone`.
-- `request_timeout_minutes`: таймаут одного HTTP-запроса.
-- `polling_delay_seconds`: пауза между запросами `nextUri`.
-- `max_retry_count`: количество повторов для временных HTTP-ошибок.
-- `retry_base_delay_seconds`: базовая задержка exponential backoff.
+- Для Excel используйте фильтры, агрегаты и выбор только нужных колонок.
+- Не делайте `select *` по большим таблицам без понимания объема результата.
+- Для миллионов строк используйте выгрузку во внешнее хранилище, parquet/csv/export pipeline или BI/ETL-инструменты.
 
 ## Extra credentials
 
-Таблица `tblExtraCredentials`:
+Пример `tblExtraCredentials`:
 
-| enabled | credential_login_type | credential_login | credential_password_type | credential_password | comment |
-| --- | --- | --- | --- | --- | --- |
-| TRUE | gp-user | your_login | gp-password | your_password | Greenplum example |
+| Включено | Тип логина | Логин | Тип пароля | Пароль |
+| --- | --- | --- | --- | --- |
+| TRUE | gp-user | your_login | gp-password | your_password |
 
-M-код преобразует включенные строки в header:
+M-код отправляет это как:
 
 ```text
 X-Trino-Extra-Credential: gp-user=your_login,gp-password=your_password
 ```
 
+## Schema preview и типы данных
+
+Power Query использует metadata Trino `columns[type]`, чтобы назначать типы результата:
+
+- `tinyint/smallint/integer/bigint` -> `Int64`
+- `real/double/decimal` -> `number`
+- `boolean` -> `logical`
+- `date` -> `date`
+- `timestamp` -> `datetime`
+- `timestamp with time zone` -> `datetimezone`
+- `varchar/char/json/uuid/ipaddress` -> `text`
+
+Также создается запрос `TrinoResultSchema`. Его можно загрузить вручную через `Queries & Connections`, если нужно посмотреть имена и типы колонок.
+
 ## Безопасность
 
-Парольные ячейки визуально скрываются Excel-форматом `;;;`, но это не шифрование. Учетные данные остаются внутри файла. Для рабочих сценариев рекомендуется:
+Парольные ячейки визуально скрыты форматом Excel `;;;`, но это не шифрование. Книга все равно содержит учетные данные.
 
-- хранить книгу в защищенном месте;
-- не рассылать файлы с реальными паролями;
-- рассмотреть отдельный сценарий без сохранения паролей в книге, если политика безопасности это требует.
+Рекомендации:
 
-## Ограничения MVP
+- не рассылайте книги с реальными паролями;
+- храните файлы с заполненными credentials в защищенном месте;
+- если политика безопасности запрещает хранить пароль в Excel, используйте отдельный процесс выдачи временных credentials.
 
-- `openpyxl` backend нужен для разработки, тестов и UI-preview. Он не встраивает Power Query.
-- `com` backend не отвечает за UI. Если внешний вид нужно менять, править нужно `openpyxl_backend.py` и тесты, а не `excel_com.py`.
-- Автоматическое создание output table `tblTrinoResult` зависит от версии Excel и провайдера `Microsoft.Mashup.OleDb.1`. Если этот шаг не сработает, Power Query-запросы все равно будут добавлены, а `TrinoResult` можно загрузить вручную через `Queries & Connections -> Load To`.
-- M-код пока возвращает значения Trino без явного приведения типов из `columns[type]`; это хороший следующий шаг после проверки базового обмена.
+## Два приложения после установки
 
-## Ближайшие улучшения
+После установки в папке приложения будут два исполняемых файла.
 
-- Отдельный безопасный режим без хранения паролей в книге.
-- Поддержка Bearer/JWT/OAuth, если Trino настроен не только на Basic Auth.
-- UI-лист с выбором catalog/schema из справочника.
-- Более умная типизация результата по Trino metadata.
-- Пакетный режим установки клиента в набор книг.
+### `trino-excel-client-gui.exe`
+
+Основное приложение для пользователя. Его стоит запускать через ярлык `Trino Excel Client`.
+
+Навигация:
+
+1. Откройте приложение.
+2. На верхней панели выберите:
+   - `Dry-run режим`, если хотите посмотреть действия без изменения файлов;
+   - `Показывать Excel при COM-операциях`, если нужно видеть Excel во время генерации;
+   - `Перезаписывать файлы`, если выходной файл можно заменить.
+3. При необходимости поменяйте `Префикс листов`. По умолчанию это `Trino`.
+4. Вкладка `Создать шаблон`:
+   - выберите путь для новой книги;
+   - выберите backend:
+     - `auto` - COM на Windows, openpyxl на Unix;
+     - `com` - рабочая книга с Power Query через Windows Excel;
+     - `openpyxl` - только UI-preview;
+   - нажмите `Создать книгу`.
+5. Вкладка `Встроить в книгу`:
+   - выберите исходную Excel-книгу;
+   - выберите путь результата;
+   - выберите backend;
+   - нажмите `Встроить клиент`.
+6. Вкладка `Подсказки` содержит краткие ограничения по Power Query, BigData и платформам.
+7. Внизу приложения отображается `Журнал операций`.
+
+На macOS/Linux используйте GUI в dry-run или с backend `openpyxl`. Полноценное встраивание Power Query работает только на Windows с desktop Excel.
+
+Запуск GUI из исходников:
+
+```bat
+trino-excel-client gui
+```
+
+Dry-run:
+
+```bash
+trino-excel-client gui --dry-run
+```
+
+### `trino-excel-client-cmd.exe`
+
+Консольная версия для cmd/PowerShell, скриптов и автоматизации.
+
+Команды:
+
+```bat
+trino-excel-client-cmd.exe create --backend com --output .\build\Trino_REST_Client.xlsx --overwrite
+```
+
+Создать рабочую книгу на Windows с Power Query.
+
+```bat
+trino-excel-client-cmd.exe create --backend com --output .\build\Trino_REST_Client.xlsx --overwrite --visible
+```
+
+То же самое, но Excel будет видимым во время генерации.
+
+```bat
+trino-excel-client-cmd.exe create --backend openpyxl --output .\build\Trino_UI_Preview.xlsx --overwrite
+```
+
+Создать UI-preview книгу без Power Query.
+
+```bat
+trino-excel-client-cmd.exe install --backend com --workbook .\reports\Workbook.xlsx --output .\build\Workbook_With_Trino.xlsx --overwrite
+```
+
+Встроить Trino-клиент в существующую книгу и сохранить копию.
+
+```bat
+trino-excel-client-cmd.exe install --backend com --workbook .\reports\Workbook.xlsx
+```
+
+Встроить Trino-клиент в существующую книгу на месте.
+
+```bat
+trino-excel-client-cmd.exe validate
+```
+
+Проверить внутренний контракт проекта.
+
+```bat
+trino-excel-client-cmd.exe gui --dry-run
+```
+
+Открыть GUI в dry-run режиме.
+
+## Windows smoke-test
+
+Перед релизом на Windows:
+
+```bat
+python scripts\windows_smoke_test.py --visible
+```
+
+На macOS/Linux можно проверить UI-часть:
+
+```bash
+python scripts/windows_smoke_test.py --skip-com
+```
+
+Ручная проверка на Windows:
+
+1. Откройте `build\smoke\Trino_REST_Client_COM.xlsx`.
+2. Заполните `Trino Config`.
+3. Введите небольшой SQL, например `select * from ... limit 10`.
+4. Нажмите `Данные -> Обновить все` несколько раз.
+5. Проверьте, что `Trino Query` не меняется, а `Trino Result` обновляется.
+
+## Сборка Windows exe и installer
+
+Установить packaging-зависимости:
+
+```bat
+pip install -e ".[package]"
+```
+
+Собрать CLI и GUI exe:
+
+```bat
+python scripts\build_windows_exe.py --clean
+```
+
+Ожидаемые файлы:
+
+```text
+dist\trino-excel-client-cmd.exe
+dist\trino-excel-client-gui.exe
+```
+
+Собрать installer через Inno Setup:
+
+```bat
+python scripts\build_windows_installer.py
+```
+
+Installer ожидает, что установлен Inno Setup compiler `ISCC.exe`.

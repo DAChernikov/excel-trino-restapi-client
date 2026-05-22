@@ -11,6 +11,31 @@ def test_project_contract_is_valid() -> None:
     assert validate_project_contract() == []
 
 
+def test_m_code_contains_bigdata_row_limit_controls() -> None:
+    function_formula = M_QUERIES["fnTrinoRestQuery"]
+    result_formula = M_QUERIES["TrinoResult"]
+
+    assert "MaxResultRows" in function_formula
+    assert "ResultOverflowBehavior" in function_formula
+    assert "DefaultQueryLimitRows" in function_formula
+    assert "100000" in function_formula
+    assert "ApplyDefaultQueryLimit" in function_formula
+    assert "EffectiveSqlText" in function_formula
+    assert "Trino result row limit exceeded" in function_formula
+    assert "Table.TransformColumnTypes" in function_formula
+    assert "TrinoTypeToPowerQueryType" in function_formula
+    assert "max_result_rows" in result_formula
+    assert "result_overflow_behavior" in result_formula
+    assert "default_query_limit_rows" in result_formula
+    assert "apply_default_query_limit" in result_formula
+    assert "TrinoResultSchema" in M_QUERIES
+    assert "Table.Schema" in M_QUERIES["TrinoResultSchema"]
+
+
+def test_default_source_name_is_official_excel_client_name() -> None:
+    assert "Microsoft Excel PowerQuery client" in M_QUERIES["fnTrinoRestQuery"]
+
+
 def test_sheet_names_are_excel_safe() -> None:
     names = client_sheet_names("Very Long Trino Client Prefix")
     assert len(names.config) <= 31

@@ -51,21 +51,21 @@ def _add_power_queries(wb) -> None:
         )
 
 
-def _delete_result_table_if_exists(query_ws) -> None:
+def _delete_result_table_if_exists(result_ws) -> None:
     try:
-        query_ws.ListObjects("tblTrinoResult").Delete()
+        result_ws.ListObjects("tblTrinoResult").Delete()
     except Exception:
         pass
 
 
-def _write_result_table_creation_note(query_ws, exc: Exception) -> None:
+def _write_result_table_creation_note(result_ws, exc: Exception) -> None:
     message = (
         "Power Query-запросы добавлены, но автоматическое создание таблицы результата "
         "не сработало. Используйте: Данные -> Запросы и подключения -> "
         "TrinoResult -> Загрузить в. "
         f"Детали: {exc}"
     )
-    note = query_ws.Range("A10")
+    note = result_ws.Range("A5")
     note.Value = message
 
     try:
@@ -80,13 +80,13 @@ def _write_result_table_creation_note(query_ws, exc: Exception) -> None:
 
 
 def _try_create_result_table(wb, sheet_prefix: str = "Trino") -> None:
-    query_sheet_name = client_sheet_names(sheet_prefix).query
-    query_ws = wb.Worksheets(query_sheet_name)
+    result_sheet_name = client_sheet_names(sheet_prefix).result
+    result_ws = wb.Worksheets(result_sheet_name)
 
-    _delete_result_table_if_exists(query_ws)
+    _delete_result_table_if_exists(result_ws)
 
-    destination = query_ws.Range("A10")
-    query_ws.Range("A10:Z500").Clear()
+    destination = result_ws.Range("A5")
+    result_ws.Range("A5:Z500").Clear()
 
     connection_string = (
         "OLEDB;Provider=Microsoft.Mashup.OleDb.1;"
@@ -95,7 +95,7 @@ def _try_create_result_table(wb, sheet_prefix: str = "Trino") -> None:
         'Extended Properties=""'
     )
 
-    list_object = query_ws.ListObjects.Add(
+    list_object = result_ws.ListObjects.Add(
         XL_SRC_EXTERNAL,
         connection_string,
         None,
@@ -118,8 +118,8 @@ def install_power_query_into_workbook(wb, sheet_prefix: str = "Trino") -> None:
     try:
         _try_create_result_table(wb, sheet_prefix=sheet_prefix)
     except Exception as exc:
-        query_ws = wb.Worksheets(client_sheet_names(sheet_prefix).query)
-        _write_result_table_creation_note(query_ws, exc)
+        result_ws = wb.Worksheets(client_sheet_names(sheet_prefix).result)
+        _write_result_table_creation_note(result_ws, exc)
 
 
 def _open_workbook_and_install_power_query(

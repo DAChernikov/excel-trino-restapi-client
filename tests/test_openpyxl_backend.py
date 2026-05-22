@@ -26,14 +26,25 @@ def test_create_workbook_ui_creates_client_sheets_and_tables(tmp_path: Path) -> 
     assert workbook[names.config]["A1"].value == "Trino REST API Client - Config"
     assert workbook[names.config]["A5"].value == "Параметр"
     assert "однако не защищают" in workbook[names.config]["A2"].value
-    assert "extraCredentials параметров Trino" in workbook[names.config]["A20"].value
+    assert "extraCredentials параметров Trino" in workbook[names.config]["A24"].value
     assert workbook[names.config]["B7"].number_format != ";;;"
     assert workbook[names.config]["B8"].number_format == ";;;"
+    assert workbook[names.config]["B11"].value == "Microsoft Excel PowerQuery client"
+    assert workbook[names.config]["A17"].value == "default_query_limit_rows"
+    assert workbook[names.config]["B17"].value == "100000"
+    assert workbook[names.config]["A18"].value == "apply_default_query_limit"
+    assert workbook[names.config]["B18"].value == "TRUE"
+    assert workbook[names.config]["A19"].value == "max_result_rows"
+    assert workbook[names.config]["B19"].value == "100000"
+    assert workbook[names.config]["A20"].value == "result_overflow_behavior"
+    assert workbook[names.config]["B20"].value == "error"
     assert workbook[names.config]["D6"].value.startswith("URL координатора")
     assert workbook[names.query]["A4"].value == "SQL запрос"
     assert workbook[names.query]["A5"].value == "select * from your_catalog.your_schema.your_table limit 100"
     assert workbook[names.query]["A5"].alignment.wrap_text is not True
-    assert workbook[names.query]["A9"].value == "В preview-книге на Unix есть только UI-таблицы. Для встраивания Power Query используйте WindowsOS."
+    assert workbook[names.result]["A1"].value == "Trino REST API Client - Result"
+    assert "область результата постоянно перезатирается" in workbook[names.result]["A2"].value
+    assert workbook[names.result]["A5"].value == "В preview-книге на Unix есть только UI-таблицы. Для встраивания Power Query используйте WindowsOS."
 
 
 def test_install_client_ui_preserves_existing_sheet(tmp_path: Path) -> None:

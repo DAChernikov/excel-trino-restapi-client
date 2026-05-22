@@ -91,7 +91,11 @@ class FakeWorksheet:
 class FakeWorksheets:
     def __init__(self, sheet_prefix: str = "Trino") -> None:
         self.query_sheet = FakeWorksheet(client_sheet_names(sheet_prefix).query)
-        self.by_name = {self.query_sheet.name: self.query_sheet}
+        self.result_sheet = FakeWorksheet(client_sheet_names(sheet_prefix).result)
+        self.by_name = {
+            self.query_sheet.name: self.query_sheet,
+            self.result_sheet.name: self.result_sheet,
+        }
 
     def __call__(self, name: str) -> FakeWorksheet:
         return self.by_name[name]
@@ -185,6 +189,10 @@ class FakeComEnvironment:
     def query_sheet(self) -> FakeWorksheet:
         return self.workbook.Worksheets.query_sheet
 
+    @property
+    def result_sheet(self) -> FakeWorksheet:
+        return self.workbook.Worksheets.result_sheet
+
 
 def _install_fake_com(monkeypatch) -> FakeComEnvironment:
     env = FakeComEnvironment()
@@ -217,15 +225,15 @@ def test_com_create_reuses_openpyxl_ui_and_installs_power_query(tmp_path: Path, 
     workbook = load_workbook(output)
     assert workbook.sheetnames == list(client_sheet_names().all)
     assert set(REQUIRED_TABLE_NAMES).issubset(_table_names(output))
-    assert workbook["Trino Query"]["A9"].value == (
+    assert workbook["Trino Result"]["A5"].value == (
         "В preview-книге на Unix есть только UI-таблицы. "
         "Для встраивания Power Query используйте WindowsOS."
     )
 
     assert [query["Name"] for query in env.workbook.Queries.added] == list(M_QUERIES)
-    assert env.query_sheet.ranges["A10:Z500"].cleared is True
-    assert env.query_sheet.ListObjects.add_calls[0]["destination"].address == "A10"
-    result_table = env.query_sheet.ListObjects.result
+    assert env.result_sheet.ranges["A5:Z500"].cleared is True
+    assert env.result_sheet.ListObjects.add_calls[0]["destination"].address == "A5"
+    result_table = env.result_sheet.ListObjects.result
     assert result_table.Name == "tblTrinoResult"
     assert result_table.QueryTable.CommandType == excel_com.XL_CMD_SQL
     assert result_table.QueryTable.CommandText == "SELECT * FROM [TrinoResult]"
@@ -261,7 +269,7 @@ def test_com_create_keeps_workbook_when_result_table_creation_fails(tmp_path: Pa
 
     def open_with_result_table_failure(path: str) -> FakeWorkbook:
         workbook = original_open(path)
-        workbook.Worksheets.query_sheet.ListObjects.fail_add = True
+        workbook.Worksheets.result_sheet.ListObjects.fail_add = True
         return workbook
 
     env.excel.Workbooks.Open = open_with_result_table_failure  # type: ignore[method-assign]
@@ -270,5 +278,5 @@ def test_com_create_keeps_workbook_when_result_table_creation_fails(tmp_path: Pa
 
     assert result == output.resolve()
     assert output.exists()
-    assert env.query_sheet.ranges["A10"].Value.startswith("Power Query-запросы добавлены")
+    assert env.result_sheet.ranges["A5"].Value.startswith("Power Query-запросы добавлены")
     assert [query["Name"] for query in env.workbook.Queries.added] == list(M_QUERIES)

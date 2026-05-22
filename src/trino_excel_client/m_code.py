@@ -122,6 +122,16 @@ let
             TextValue = try Text.From(value) otherwise defaultValue
         in
             if Text.Trim(TextValue) = "" then defaultValue else TextValue,
+    ToLogical = (value as any, defaultValue as logical) as logical =>
+        let
+            TextValue = Text.Lower(Text.Trim(try Text.From(value) otherwise ""))
+        in
+            if List.Contains({"true", "1", "yes", "y", "да", "истина"}, TextValue) then
+                true
+            else if List.Contains({"false", "0", "no", "n", "нет", "ложь"}, TextValue) then
+                false
+            else
+                defaultValue,
     OptionalHeader = (headerName as text, headerValue as any) as record =>
         let
             TextValue = try Text.Trim(Text.From(headerValue)) otherwise ""
@@ -132,7 +142,7 @@ let
             Text.Start(trinoBaseUrl, Text.Length(trinoBaseUrl) - 1)
         else
             trinoBaseUrl,
-    SourceName = ToText(GetOption("SourceName", "excel_power_query"), "excel_power_query"),
+    SourceName = ToText(GetOption("SourceName", "Microsoft Excel PowerQuery client"), "Microsoft Excel PowerQuery client"),
     TimeZoneName = ToText(GetOption("TimeZone", "Europe/Moscow"), "Europe/Moscow"),
     CatalogName = try GetOption("Catalog", "") otherwise "",
     SchemaName = try GetOption("Schema", "") otherwise "",
@@ -140,6 +150,30 @@ let
     PollingDelaySeconds = ToNumber(GetOption("PollingDelaySeconds", 0.2), 0.2),
     MaxRetryCount = Number.RoundDown(ToNumber(GetOption("MaxRetryCount", 5), 5)),
     RetryBaseDelaySeconds = ToNumber(GetOption("RetryBaseDelaySeconds", 0.5), 0.5),
+    DefaultQueryLimitRows = Number.RoundDown(ToNumber(GetOption("DefaultQueryLimitRows", 100000), 100000)),
+    ApplyDefaultQueryLimit = ToLogical(GetOption("ApplyDefaultQueryLimit", true), true),
+    MaxResultRows = Number.RoundDown(ToNumber(GetOption("MaxResultRows", 100000), 100000)),
+    ResultOverflowBehavior = Text.Lower(ToText(GetOption("ResultOverflowBehavior", "error"), "error")),
+    NormalizeSqlForLimit = (query as text) as text =>
+        let
+            Trimmed = Text.Trim(query),
+            WithoutTrailingSemicolon =
+                if Text.EndsWith(Trimmed, ";") then
+                    Text.Start(Trimmed, Text.Length(Trimmed) - 1)
+                else
+                    Trimmed
+        in
+            WithoutTrailingSemicolon,
+    EffectiveSqlText =
+        if ApplyDefaultQueryLimit and DefaultQueryLimitRows > 0 then
+            "select * from ("
+                & "#(lf)"
+                & NormalizeSqlForLimit(sqlText)
+                & "#(lf)"
+                & ") as excel_trino_client_query limit "
+                & Text.From(DefaultQueryLimitRows)
+        else
+            sqlText,
     RequestTimeout = #duration(0, 0, RequestTimeoutMinutes, 0),
     PollingDelay = #duration(0, 0, 0, PollingDelaySeconds),
     AuthHeader =
@@ -263,7 +297,7 @@ let
                     [
                         RelativePath = "v1/statement",
                         Headers = PostHeaders,
-                        Content = Text.ToBinary(sqlText, TextEncoding.Utf8),
+                        Content = Text.ToBinary(EffectiveSqlText, TextEncoding.Utf8),
                         Timeout = RequestTimeout
                     ]
                 )
@@ -290,22 +324,48 @@ let
                 )
         in
             ParseResponse(Response),
+    PageRowCount = (page as nullable record) as number =>
+        if page <> null and Record.HasFields(page, "data") then
+            List.Count(page[data])
+        else
+            0,
     FirstPage = PostStatement(),
-    GeneratedPages =
+    FirstRowCount = PageRowCount(FirstPage),
+    FirstOverflow = MaxResultRows > 0 and FirstRowCount > MaxResultRows,
+    GeneratedStates =
         List.Generate(
-            () => FirstPage,
-            each _ <> null,
+            () => [Page = FirstPage, RowCount = FirstRowCount, Overflow = FirstOverflow],
+            each [Page] <> null,
             each
-                if Record.HasFields(_, "nextUri") then
-                    Function.InvokeAfter(
-                        () => GetNextPage(_[nextUri]),
-                        PollingDelay
-                    )
-                else
-                    null,
+                let
+                    CurrentPage = [Page],
+                    CurrentRowCount = [RowCount],
+                    CurrentOverflow = [Overflow],
+                    HasNext = CurrentPage <> null and Record.HasFields(CurrentPage, "nextUri"),
+                    ShouldFetchNext = HasNext and not CurrentOverflow,
+                    NextPage =
+                        if ShouldFetchNext then
+                            Function.InvokeAfter(
+                                () => GetNextPage(CurrentPage[nextUri]),
+                                PollingDelay
+                            )
+                        else
+                            null,
+                    NextRowCount = PageRowCount(NextPage),
+                    TotalRowCount = CurrentRowCount + NextRowCount,
+                    NextOverflow = MaxResultRows > 0 and TotalRowCount > MaxResultRows
+                in
+                    [Page = NextPage, RowCount = TotalRowCount, Overflow = NextOverflow],
             each _
         ),
-    Pages = List.Buffer(GeneratedPages),
+    States = List.Buffer(GeneratedStates),
+    Pages = List.Buffer(List.Transform(States, each [Page])),
+    TotalRowsSeen =
+        if List.Count(States) = 0 then
+            0
+        else
+            List.Last(States)[RowCount],
+    IsOverflow = List.AnyTrue(List.Transform(States, each [Overflow])),
     PageWithColumns =
         List.First(
             List.Select(Pages, each Record.HasFields(_, "columns")),
@@ -316,16 +376,81 @@ let
             List.Transform(PageWithColumns[columns], each _[name])
         else
             {},
-    Rows =
+    TrinoTypeToPowerQueryType = (trinoType as nullable text) as any =>
+        let
+            NormalizedType = if trinoType = null then "" else Text.Lower(Text.Trim(trinoType)),
+            BaseType = if Text.Contains(NormalizedType, "(") then Text.BeforeDelimiter(NormalizedType, "(") else NormalizedType,
+            ResultType =
+                if List.Contains({"tinyint", "smallint", "integer", "bigint"}, BaseType) then
+                    Int64.Type
+                else if List.Contains({"real", "double", "decimal"}, BaseType) then
+                    type number
+                else if BaseType = "boolean" then
+                    type logical
+                else if BaseType = "date" then
+                    type date
+                else if Text.StartsWith(NormalizedType, "time") then
+                    type time
+                else if Text.StartsWith(NormalizedType, "timestamp") and Text.Contains(NormalizedType, "with time zone") then
+                    type datetimezone
+                else if Text.StartsWith(NormalizedType, "timestamp") then
+                    type datetime
+                else if List.Contains({"varchar", "char", "json", "uuid", "ipaddress"}, BaseType) then
+                    type text
+                else
+                    null
+        in
+            ResultType,
+    ColumnTypePairs =
+        if PageWithColumns <> null then
+            List.Transform(
+                PageWithColumns[columns],
+                each {_[name], TrinoTypeToPowerQueryType(try _[type] otherwise null)}
+            )
+        else
+            {},
+    AllRows =
         List.Combine(
             List.Transform(
                 Pages,
                 each if Record.HasFields(_, "data") then _[data] else {}
             )
         ),
+    Rows =
+        if MaxResultRows > 0 then
+            List.FirstN(AllRows, MaxResultRows)
+        else
+            AllRows,
+    OverflowMessage =
+        "Query returned more rows than max_result_rows="
+        & Text.From(MaxResultRows)
+        & ". Excel cannot safely load very large BigData result sets. "
+        & "Add LIMIT/aggregation/filtering, increase max_result_rows consciously, "
+        & "or set result_overflow_behavior=truncate to load only the first rows. "
+        & "Rows seen before stop: "
+        & Text.From(TotalRowsSeen),
     Result =
-        if List.Count(ColumnNames) > 0 then
-            Table.FromRows(Rows, ColumnNames)
+        if IsOverflow and ResultOverflowBehavior <> "truncate" then
+            error Error.Record(
+                "Trino result row limit exceeded",
+                OverflowMessage,
+                [
+                    max_result_rows = MaxResultRows,
+                    rows_seen_before_stop = TotalRowsSeen,
+                    result_overflow_behavior = ResultOverflowBehavior
+                ]
+            )
+        else if List.Count(ColumnNames) > 0 then
+            let
+                RawTable = Table.FromRows(Rows, ColumnNames),
+                TypedColumns = List.Select(ColumnTypePairs, each _{1} <> null),
+                TypedTable =
+                    if List.Count(TypedColumns) = 0 then
+                        RawTable
+                    else
+                        Table.TransformColumnTypes(RawTable, TypedColumns, "en-US")
+            in
+                TypedTable
         else
             #table({}, {})
 in
@@ -360,17 +485,30 @@ let
                 qSqlText,
                 qExtraCredentials,
                 [
-                    SourceName = try Config[source_name] otherwise "excel_power_query",
+                    SourceName = try Config[source_name] otherwise "Microsoft Excel PowerQuery client",
                     TimeZone = try Config[time_zone] otherwise "Europe/Moscow",
                     Catalog = try Config[trino_catalog] otherwise "",
                     Schema = try Config[trino_schema] otherwise "",
                     RequestTimeoutMinutes = try Config[request_timeout_minutes] otherwise 5,
                     PollingDelaySeconds = try Config[polling_delay_seconds] otherwise 0.2,
                     MaxRetryCount = try Config[max_retry_count] otherwise 5,
-                    RetryBaseDelaySeconds = try Config[retry_base_delay_seconds] otherwise 0.5
+                    RetryBaseDelaySeconds = try Config[retry_base_delay_seconds] otherwise 0.5,
+                    DefaultQueryLimitRows = try Config[default_query_limit_rows] otherwise 100000,
+                    ApplyDefaultQueryLimit = try Config[apply_default_query_limit] otherwise true,
+                    MaxResultRows = try Config[max_result_rows] otherwise 100000,
+                    ResultOverflowBehavior = try Config[result_overflow_behavior] otherwise "error"
                 ]
             )
 in
     Result
+''',
+    "TrinoResultSchema": r'''
+let
+    Source = TrinoResult,
+    Schema = Table.Schema(Source),
+    Selected = Table.SelectColumns(Schema, {"Name", "Kind", "TypeName", "Position"}),
+    Sorted = Table.Sort(Selected, {{"Position", Order.Ascending}})
+in
+    Sorted
 ''',
 }

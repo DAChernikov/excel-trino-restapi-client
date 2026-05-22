@@ -142,21 +142,29 @@ def _add_config_sheet(wb, sheet_prefix: str):
     _add_table(ws, "A5", CONFIG_TABLE)
     ws["B8"].number_format = ";;;"
 
-    _section(ws, "A19", "Extra credentials для источников данных", 5)
+    _section(ws, "A23", "Extra credentials для источников данных", 5)
     _note(
         ws,
-        "A20",
+        "A24",
         "Используйте эту таблицу для заполнения extraCredentials параметров Trino, например gp-user/gp-password. Активные строки должны быть = TRUE для использования.",
         5,
         "light_green",
     )
-    _add_table(ws, "A22", EXTRA_CREDENTIALS_TABLE)
-    for row in range(23, 26):
+    _add_table(ws, "A26", EXTRA_CREDENTIALS_TABLE)
+    for row in range(27, 30):
         ws[f"E{row}"].number_format = ";;;"
 
     validation = DataValidation(type="list", formula1='"TRUE,FALSE"', allow_blank=True)
     ws.add_data_validation(validation)
-    validation.add("A23:A25")
+    validation.add("A27:A29")
+
+    overflow_validation = DataValidation(type="list", formula1='"error,truncate"', allow_blank=False)
+    ws.add_data_validation(overflow_validation)
+    overflow_validation.add("B20")
+
+    apply_limit_validation = DataValidation(type="list", formula1='"TRUE,FALSE"', allow_blank=False)
+    ws.add_data_validation(apply_limit_validation)
+    apply_limit_validation.add("B18")
 
     widths = {"A": 28, "B": 34, "C": 13, "D": 62, "E": 24, "F": 32}
     for col, width in widths.items():
@@ -172,7 +180,7 @@ def _add_query_sheet(wb, sheet_prefix: str):
     _note(
         ws,
         "A2",
-        "Введите SQL в одну широкую строку ниже. На Windows backend Excel COM дополнительно встраивает Power Query-запросы.",
+        "Введите SQL в одну широкую строку ниже. Результат загружается отдельно на лист Trino Result, чтобы обновление не затрагивало ввод.",
         4,
         "light_blue",
     )
@@ -182,12 +190,28 @@ def _add_query_sheet(wb, sheet_prefix: str):
     ws.row_dimensions[4].height = 22
     ws.row_dimensions[5].height = 24
 
-    _section(ws, "A8", "Результат", 4)
-    ws["A9"] = "В preview-книге на Unix есть только UI-таблицы. Для встраивания Power Query используйте WindowsOS."
-    ws["A9"].fill = _fill("gray")
-    ws["A9"].font = Font(name="Aptos", size=10, italic=True, color=COLORS["dark_gray"])
-    ws["A9"].alignment = Alignment(vertical="top", wrap_text=True)
     ws.column_dimensions["A"].width = 150
+    ws.freeze_panes = "A5"
+    return ws
+
+
+def _add_result_sheet(wb, sheet_prefix: str):
+    ws = wb.create_sheet(client_sheet_names(sheet_prefix).result)
+    ws.sheet_properties.tabColor = COLORS["green"]
+    _title(ws, "A1", "Trino REST API Client - Result", 4)
+    _note(
+        ws,
+        "A2",
+        "Сюда загружается результат Power Query TrinoResult. Не размещайте пользовательские данные ниже этой строки: область результата постоянно перезатирается.",
+        4,
+        "light_green",
+    )
+    _section(ws, "A4", "Результат", 4)
+    ws["A5"] = "В preview-книге на Unix есть только UI-таблицы. Для встраивания Power Query используйте WindowsOS."
+    ws["A5"].fill = _fill("gray")
+    ws["A5"].font = Font(name="Aptos", size=10, italic=True, color=COLORS["dark_gray"])
+    ws["A5"].alignment = Alignment(vertical="top", wrap_text=True)
+    ws.column_dimensions["A"].width = 60
     ws.freeze_panes = "A5"
     return ws
 
@@ -214,6 +238,7 @@ def install_client_ui(wb, sheet_prefix: str = "Trino") -> None:
     _remove_client_sheets(wb, sheet_prefix)
     _add_config_sheet(wb, sheet_prefix)
     _add_query_sheet(wb, sheet_prefix)
+    _add_result_sheet(wb, sheet_prefix)
     _add_help_sheet(wb, sheet_prefix)
 
 
