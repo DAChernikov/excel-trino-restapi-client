@@ -1,0 +1,90 @@
+scripts/windows_smoke_test.py
+  s_819cc380a7b08a::t_48ac77f15d5b4f 1-134
+src/trino_excel_client/cli.py
+  s_819cc380a7b08a::t_dce62b2c6c2488 104-112,169-172
+src/trino_excel_client/m_code.py
+  s_819cc380a7b08a::t_c9313d6d997a05 125-134,154,157-176,300,380-391,393,397-400,402-409,444-445,447-450,452-453,497
+  s_819cc380a7b08a::t_cb38d4e4aa4285 505-512
+  s_819cc380a7b08a::t_94155ed8785cb5 379,401,446
+  s_819cc380a7b08a::t_38af94b46d3e15 145,488
+  s_819cc380a7b08a::t_c8e705744229f8 153,496
+  s_819cc380a7b08a::t_1126e4dd13329a 155-156,327-331,333-335,337-338,340-358,361-368,412,419-431,433-443,495,498-499
+  s_819cc380a7b08a::t_2d3d7b5ec3880b 392,394-396
+  s_819cc380a7b08a::t_051262469ee4d2 451
+src/trino_excel_client/excel_com.py
+  s_819cc380a7b08a::t_0eb7e56484d93f 54,56,61,68,83-84,86,88-89,98,121-122
+scripts/build_windows_exe.py
+  s_819cc380a7b08a::t_baa4798769fc97 1-15,17-34,41-43,45-50,52-54,56-57,59,62-66,97-100
+  s_819cc380a7b08a::t_f7d952e4a6ed83 35-40,44,51,55,58,60-61,67-78,80-96
+  s_819cc380a7b08a::t_737a1c873152bb 16,79
+installer/windows/trino-excel-client.iss
+  s_819cc380a7b08a::t_737a1c873152bb 25
+  s_819cc380a7b08a::t_6c4056a9b64adb 1-6,8-24,26-35
+  s_819cc380a7b08a::t_d69ab04e7803e8 7
+tests/test_contract.py
+  s_819cc380a7b08a::t_2e69138f2bf46c 20,22-23,25-26,29-30
+  s_819cc380a7b08a::t_95c9350f0c3c87 35-38
+  s_819cc380a7b08a::t_ceaf45d81511f0 21
+  s_819cc380a7b08a::t_81ca37e26c2ada 14-19,24,27-28,33-34
+  s_819cc380a7b08a::t_817d1f718b433d 31-32
+src/trino_excel_client/template.py
+  s_819cc380a7b08a::t_38af94b46d3e15 35
+  s_819cc380a7b08a::t_2c8b00874cf245 18,22-23,43-44,82,117
+  s_819cc380a7b08a::t_ba84d507a94934 42,85-87
+  s_819cc380a7b08a::t_e6623a96c6cff3 98
+  s_819cc380a7b08a::t_c8e705744229f8 41
+src/trino_excel_client/openpyxl_backend.py
+  s_819cc380a7b08a::t_6e53c2850d3358 205
+  s_819cc380a7b08a::t_8017ceec387a6e 145,148,153-154,159,163-167
+  s_819cc380a7b08a::t_9fe3ae9fbafe81 161-162,183,198-204,206-218,241
+scripts/build_windows_installer.py
+  s_819cc380a7b08a::t_737a1c873152bb 30
+  s_819cc380a7b08a::t_6c4056a9b64adb 1-29,31-48
+tests/test_openpyxl_backend.py
+  s_819cc380a7b08a::t_95c9350f0c3c87 32
+  s_819cc380a7b08a::t_b84ebb3dc17738 45,47
+  s_819cc380a7b08a::t_5b0edd7809dc9f 29,33,35-40
+  s_819cc380a7b08a::t_c8e705744229f8 34
+  s_819cc380a7b08a::t_6e53c2850d3358 46
+examples/EXAMPLES.md
+  s_819cc380a7b08a::t_eabb5df6584ab9 3,9,15-21,24,27,30-36,39-51,53,55,57,60-72
+  s_819cc380a7b08a::t_e551a8e846cbe3 73-89
+README.md
+  s_819cc380a7b08a::t_56cfeccdd657ca 134,143,176,180,182
+  s_819cc380a7b08a::t_f3f7f11d1ae3e3 211,213,215,217,219,221-240,242,246,250,254,256,258,260,262-264,266,268-270,272,274-276,278,280-282,284,286-287,290,292-293,296,298-302,343
+  s_819cc380a7b08a::t_f424ef81a9db0c 151-155,172,174,191-197
+  s_819cc380a7b08a::t_eabb5df6584ab9 3,5,7,9-12,14,16,18,20,22,24-27,29,31,33-35,37,39,41-44,46,49-61,66,74,78,81,83-92,95,101,103,106,109,112,115,117-118,121,123,125-132,136,138,140,142,144-147,149,156,159,161-162,165,167-171,173,175,177-179,181,183-184,187,189,199,201,203,205,207-209,244,247-248,252-253,294,304-324,326,334,340,344,347,350-351,353
+  s_819cc380a7b08a::t_0d660d5876bd60 325,328,330-333,335-339,341-342,345-346,348-349
+tests/test_excel_com.py
+  s_819cc380a7b08a::t_c945ec65819c86 94-98,192-195,228,234-236,272,281
+.gitignore
+  h_29db3271bff073 10
+pyproject.toml
+  s_819cc380a7b08a::t_ab2a591d81a41e 20-22
+  s_819cc380a7b08a::t_dce62b2c6c2488 26
+src/trino_excel_client/gui_app.py
+  s_819cc380a7b08a::t_440d65aa4b5109 1-285
+tests/test_cli.py
+  s_819cc380a7b08a::t_e058400529180c 22-28
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.0",
+  "base_commit_sha": "13905eb160d1bcff27dce07e43fa0b29b24b012b",
+  "prompts": {},
+  "humans": {
+    "h_29db3271bff073": {
+      "author": "DAChernikov <129949710+DAChernikov@users.noreply.github.com>"
+    }
+  },
+  "sessions": {
+    "s_819cc380a7b08a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e4a8c-feec-7863-84d3-818764e87a13",
+        "model": "gpt-5.5"
+      },
+      "human_author": "DAChernikov <129949710+DAChernikov@users.noreply.github.com>"
+    }
+  }
+}
