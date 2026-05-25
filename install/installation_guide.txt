@@ -62,6 +62,7 @@ CLI:
 Если setup.exe отсутствует, его нужно собрать на Windows:
 
   pip install -e ".[test,package]"
+  python scripts\build_app_icon.py
   python scripts\build_windows_exe.py --clean
   python scripts\build_windows_installer.py
 

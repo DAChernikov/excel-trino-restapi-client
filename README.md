@@ -357,8 +357,11 @@ pip install -e ".[package]"
 Собрать CLI и GUI exe:
 
 ```bat
+python scripts\build_app_icon.py
 python scripts\build_windows_exe.py --clean
 ```
+
+Windows exe и installer используют иконку `assets\app_icon.ico`.
 
 Ожидаемые файлы:
 

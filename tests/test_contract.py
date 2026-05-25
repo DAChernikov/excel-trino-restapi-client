@@ -54,6 +54,9 @@ def test_windows_installer_outputs_repo_install_setup_exe() -> None:
 
     assert "OutputDir=..\\..\\install" in iss
     assert "OutputBaseFilename=setup" in iss
+    assert 'SetupIconFile={#MyAppIcon}' in iss
+    assert 'UninstallDisplayIcon={app}\\{#MyAppExeName}' in iss
+    assert 'IconFilename: "{app}\\{#MyAppExeName}"' in iss
     assert "DisableDirPage=no" in iss
     assert "UsePreviousAppDir=no" not in iss
     assert "CloseApplications=yes" in iss
@@ -92,8 +95,33 @@ def test_pyinstaller_uses_package_safe_entrypoints() -> None:
     assert 'entrypoint="scripts/pyinstaller_gui_entry.py"' in build_script
     assert 'entrypoint="src/trino_excel_client/cli.py"' not in build_script
     assert 'entrypoint="src/trino_excel_client/gui_app.py"' not in build_script
+    assert 'DEFAULT_ICON = Path("assets") / "app_icon.ico"' in build_script
+    assert '["--icon", str(args.icon)]' in build_script
+    assert "--add-data" in build_script
+    assert "os.pathsep" in build_script
     assert "from trino_excel_client.cli import main" in cli_entry
     assert "from trino_excel_client.gui_app import main" in gui_entry
+
+
+def test_gui_sets_runtime_window_icon() -> None:
+    gui_app = _read_text("src/trino_excel_client/gui_app.py")
+
+    assert "SetCurrentProcessExplicitAppUserModelID" in gui_app
+    assert "_resource_path(\"assets/app_icon.ico\")" in gui_app
+    assert "self.iconbitmap(default=str(icon_path))" in gui_app
+
+
+def test_app_icon_asset_exists() -> None:
+    from pathlib import Path
+
+    icon_path = Path("assets") / "app_icon.ico"
+    icon_script = _read_text("scripts/build_app_icon.py")
+
+    assert icon_path.exists()
+    assert icon_path.stat().st_size > 1024
+    assert icon_path.read_bytes()[:4] == b"\x00\x00\x01\x00"
+    assert "--source" in icon_script
+    assert "assets/app_icon.ico" in icon_script
 
 
 def test_gui_defaults_save_workbooks_to_desktop() -> None:

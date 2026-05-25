@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import argparse
+import os
 import subprocess
 import sys
 from pathlib import Path
+
+DEFAULT_ICON = Path("assets") / "app_icon.ico"
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -38,6 +41,12 @@ def build_parser() -> argparse.ArgumentParser:
         default="all",
         help="Which executable to build. Default: all.",
     )
+    parser.add_argument(
+        "--icon",
+        type=Path,
+        default=DEFAULT_ICON,
+        help="Path to .ico file used for Windows executables.",
+    )
     return parser
 
 
@@ -57,6 +66,9 @@ def _run_pyinstaller(args, *, name: str, entrypoint: str, windowed: bool) -> Pat
         "src",
         entrypoint,
     ]
+    if args.icon.exists():
+        command[-1:-1] = ["--icon", str(args.icon)]
+        command[-1:-1] = ["--add-data", f"{args.icon}{os.pathsep}assets"]
     if windowed:
         command.insert(4, "--windowed")
     if args.clean:

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import platform
 import queue
+import sys
 import threading
 import tkinter as tk
 from pathlib import Path
@@ -18,6 +19,7 @@ EXCEL_LIGHT = "#E7F3EC"
 EXCEL_BORDER = "#C8DCCF"
 TEXT_DARK = "#1F2933"
 TEXT_MUTED = "#5F6B7A"
+APP_ID = "DAChernikov.TrinoExcelClient.0.1.0"
 
 
 def _default_output_dir() -> Path:
@@ -29,8 +31,26 @@ def _desktop_path(filename: str) -> Path:
     return _default_output_dir() / filename
 
 
+def _resource_path(relative_path: str) -> Path:
+    bundle_root = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parents[2]))
+    return bundle_root / relative_path
+
+
+def _set_windows_app_id() -> None:
+    if platform.system() != "Windows":
+        return
+
+    try:
+        import ctypes
+
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(APP_ID)
+    except Exception:
+        pass
+
+
 class TrinoExcelClientApp(tk.Tk):
     def __init__(self, dry_run: bool = False) -> None:
+        _set_windows_app_id()
         super().__init__()
         self.title("Trino Excel Client")
         self.geometry("980x680")
@@ -48,9 +68,20 @@ class TrinoExcelClientApp(tk.Tk):
         self.visible_excel = tk.BooleanVar(value=False)
         self.dry_run = tk.BooleanVar(value=dry_run)
 
+        self._set_app_icon()
         self._configure_style()
         self._build_layout()
         self.after(100, self._drain_events)
+
+    def _set_app_icon(self) -> None:
+        icon_path = _resource_path("assets/app_icon.ico")
+        if not icon_path.exists():
+            return
+
+        try:
+            self.iconbitmap(default=str(icon_path))
+        except tk.TclError:
+            pass
 
     def _configure_style(self) -> None:
         style = ttk.Style(self)

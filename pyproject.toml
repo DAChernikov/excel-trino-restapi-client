@@ -19,6 +19,7 @@ test = [
 ]
 package = [
     "pyinstaller>=6; platform_system == 'Windows'",
+    "pillow>=10",
 ]
 
 [project.scripts]

@@ -3,6 +3,7 @@
 #define MyAppPublisher "DAChernikov"
 #define MyAppExeName "trino-excel-client-gui.exe"
 #define MyCmdExeName "trino-excel-client-cmd.exe"
+#define MyAppIcon "..\..\assets\app_icon.ico"
 
 [Setup]
 AppId={{B91F78FB-CC19-4E3E-88A2-0F2E4A3C9D21}
@@ -21,6 +22,8 @@ OutputBaseFilename=setup
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
+SetupIconFile={#MyAppIcon}
+UninstallDisplayIcon={app}\{#MyAppExeName}
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -39,9 +42,9 @@ Source: "..\..\dist\trino-excel-client-gui.exe"; DestDir: "{app}"; Flags: ignore
 Source: "..\..\dist\trino-excel-client-cmd.exe"; DestDir: "{app}"; Flags: ignoreversion; Components: cli
 
 [Icons]
-Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Components: gui; Tasks: startmenuicon
-Name: "{autoprograms}\{#MyAppName} CMD"; Filename: "{app}\{#MyCmdExeName}"; Components: cli; Tasks: startmenuicon
-Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon; Components: gui
+Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\{#MyAppExeName}"; Components: gui; Tasks: startmenuicon
+Name: "{autoprograms}\{#MyAppName} CMD"; Filename: "{app}\{#MyCmdExeName}"; IconFilename: "{app}\{#MyAppExeName}"; Components: cli; Tasks: startmenuicon
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\{#MyAppExeName}"; Tasks: desktopicon; Components: gui
 
 [Tasks]
 Name: "startmenuicon"; Description: "Создать ярлыки в Start Menu"; GroupDescription: "Дополнительные ярлыки:"; Flags: checkedonce
