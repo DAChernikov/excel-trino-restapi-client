@@ -1,0 +1,53 @@
+scripts/build_windows_installer.py
+  s_819cc380a7b08a::t_9c5ea9b70910ce 8-9,46-48
+tests/test_excel_com.py
+  s_819cc380a7b08a::t_59cbc9d4dacc9d 38,43-44,48,50,58,61,82,84,94,96,123-147,152-155,271-278
+install/README.md
+  s_819cc380a7b08a::t_2a1c4274c70ca3 1-10,12-19
+  h_29db3271bff073 11
+.github/workflows/build-windows-installer.yml
+  s_819cc380a7b08a::t_f3c8e2fd66021a 1-23,27-75
+  s_819cc380a7b08a::t_a40a8e749f97b3 24-26
+examples/EXAMPLES.md
+  s_819cc380a7b08a::t_d6022d544318c0 6,12,67-78
+src/trino_excel_client/excel_com.py
+  s_819cc380a7b08a::t_ccc58c1fbc1169 54-104,106-110,112-117,177-191,197,199,203-204
+  s_819cc380a7b08a::t_acaa93ab92591d 105,111,146
+.gitignore
+  s_819cc380a7b08a::t_2d8ad62682511a 10-11
+installer/windows/trino-excel-client.iss
+  s_819cc380a7b08a::t_72d097e1350c40 5,15,26-27,30-32,34,37-38,41-43,49
+  s_819cc380a7b08a::t_f5841e74642a1c 16,24,28-29
+  s_819cc380a7b08a::t_79cd31a9f51b81 33
+  s_819cc380a7b08a::t_d1d289e0e54c9a 17
+tests/test_contract.py
+  s_819cc380a7b08a::t_bd1c153aa8c863 6-11,49-59
+  s_819cc380a7b08a::t_cc3f735743257e 37
+README.md
+  s_819cc380a7b08a::t_ca36b1b50f9734 31-52,55,79,107,113,127,133
+  s_819cc380a7b08a::t_6657a15b4a8c88 222
+  s_819cc380a7b08a::t_a7fbadd7c5c57e 159-160,377,380-382,385-386
+  s_819cc380a7b08a::t_d9e666ffb9b0a1 270,376,383-384
+  s_819cc380a7b08a::t_d5d3002e0fe012 378-379
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.1",
+  "base_commit_sha": "2a449aef0ae59bdb5047304e132dfaa2f261f2b0",
+  "prompts": {},
+  "humans": {
+    "h_29db3271bff073": {
+      "author": "DAChernikov <129949710+DAChernikov@users.noreply.github.com>"
+    }
+  },
+  "sessions": {
+    "s_819cc380a7b08a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e4a8c-feec-7863-84d3-818764e87a13",
+        "model": "gpt-5.5"
+      },
+      "human_author": "DAChernikov <129949710+DAChernikov@users.noreply.github.com>"
+    }
+  }
+}
