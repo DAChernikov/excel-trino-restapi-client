@@ -1,0 +1,30 @@
+scripts/build_windows_exe.py
+  s_819cc380a7b08a::t_96cbb07efdcbab 80,89
+scripts/pyinstaller_gui_entry.py
+  s_819cc380a7b08a::t_47e79abbe3decf 1-5
+scripts/pyinstaller_cli_entry.py
+  s_819cc380a7b08a::t_0a95659aa2b7ab 1-5
+tests/test_contract.py
+  s_819cc380a7b08a::t_1a8657462fe16a 75-87
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.1",
+  "base_commit_sha": "e65187e36294901b63b67e68630a5aa125e3e29b",
+  "prompts": {},
+  "humans": {
+    "h_29db3271bff073": {
+      "author": "DAChernikov <129949710+DAChernikov@users.noreply.github.com>"
+    }
+  },
+  "sessions": {
+    "s_819cc380a7b08a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e4a8c-feec-7863-84d3-818764e87a13",
+        "model": "gpt-5.5"
+      },
+      "human_author": "DAChernikov <129949710+DAChernikov@users.noreply.github.com>"
+    }
+  }
+}
