@@ -40,17 +40,19 @@ Name: "cli"; Description: "Консольная утилита"; Types: full
 [Files]
 Source: "..\..\dist\trino-excel-client-gui.exe"; DestDir: "{app}"; Flags: ignoreversion; Components: gui
 Source: "..\..\dist\trino-excel-client-cmd.exe"; DestDir: "{app}"; Flags: ignoreversion; Components: cli
+Source: "{#MyAppIcon}"; DestDir: "{app}\assets"; DestName: "app_icon.ico"; Flags: ignoreversion; Components: gui
 
 [Icons]
-Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\{#MyAppExeName}"; Components: gui; Tasks: startmenuicon
-Name: "{autoprograms}\{#MyAppName} CMD"; Filename: "{app}\{#MyCmdExeName}"; IconFilename: "{app}\{#MyAppExeName}"; Components: cli; Tasks: startmenuicon
-Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\{#MyAppExeName}"; Tasks: desktopicon; Components: gui
+Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\assets\app_icon.ico"; Components: gui; Tasks: startmenuicon
+Name: "{autoprograms}\{#MyAppName} CMD"; Filename: "{app}\{#MyCmdExeName}"; IconFilename: "{app}\assets\app_icon.ico"; Components: cli; Tasks: startmenuicon
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\assets\app_icon.ico"; Tasks: desktopicon; Components: gui
 
 [Tasks]
 Name: "startmenuicon"; Description: "Создать ярлыки в Start Menu"; GroupDescription: "Дополнительные ярлыки:"; Flags: checkedonce
 Name: "desktopicon"; Description: "Создать ярлык GUI на рабочем столе"; GroupDescription: "Дополнительные ярлыки:"; Flags: unchecked
 
 [Run]
+Filename: "{cmd}"; Parameters: "/C ie4uinit.exe -show >NUL 2>&1"; Flags: runhidden
 Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent; Components: gui
 
 [UninstallRun]

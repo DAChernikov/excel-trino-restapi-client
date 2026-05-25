@@ -56,7 +56,9 @@ def test_windows_installer_outputs_repo_install_setup_exe() -> None:
     assert "OutputBaseFilename=setup" in iss
     assert 'SetupIconFile={#MyAppIcon}' in iss
     assert 'UninstallDisplayIcon={app}\\{#MyAppExeName}' in iss
-    assert 'IconFilename: "{app}\\{#MyAppExeName}"' in iss
+    assert 'DestDir: "{app}\\assets"; DestName: "app_icon.ico"' in iss
+    assert 'IconFilename: "{app}\\assets\\app_icon.ico"' in iss
+    assert "ie4uinit.exe -show" in iss
     assert "DisableDirPage=no" in iss
     assert "UsePreviousAppDir=no" not in iss
     assert "CloseApplications=yes" in iss
@@ -96,9 +98,10 @@ def test_pyinstaller_uses_package_safe_entrypoints() -> None:
     assert 'entrypoint="src/trino_excel_client/cli.py"' not in build_script
     assert 'entrypoint="src/trino_excel_client/gui_app.py"' not in build_script
     assert 'DEFAULT_ICON = Path("assets") / "app_icon.ico"' in build_script
-    assert '["--icon", str(args.icon)]' in build_script
+    assert 'f"--icon={args.icon}"' in build_script
     assert "--add-data" in build_script
     assert "os.pathsep" in build_script
+    assert "Icon file does not exist" in build_script
     assert "from trino_excel_client.cli import main" in cli_entry
     assert "from trino_excel_client.gui_app import main" in gui_entry
 

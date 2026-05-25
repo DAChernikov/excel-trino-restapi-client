@@ -51,11 +51,17 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def _run_pyinstaller(args, *, name: str, entrypoint: str, windowed: bool) -> Path:
+    if not args.icon.exists():
+        raise FileNotFoundError(f"Icon file does not exist: {args.icon}")
+
     command = [
         sys.executable,
         "-m",
         "PyInstaller",
         "--onefile",
+        f"--icon={args.icon}",
+        "--add-data",
+        f"{args.icon}{os.pathsep}assets",
         "--name",
         name,
         "--distpath",
@@ -66,9 +72,6 @@ def _run_pyinstaller(args, *, name: str, entrypoint: str, windowed: bool) -> Pat
         "src",
         entrypoint,
     ]
-    if args.icon.exists():
-        command[-1:-1] = ["--icon", str(args.icon)]
-        command[-1:-1] = ["--add-data", f"{args.icon}{os.pathsep}assets"]
     if windowed:
         command.insert(4, "--windowed")
     if args.clean:
