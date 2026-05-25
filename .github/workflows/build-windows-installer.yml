@@ -15,6 +15,7 @@ on:
     branches:
       - master
     paths:
+      - ".github/workflows/build-windows-installer.yml"
       - "src/**"
       - "scripts/build_windows_exe.py"
       - "scripts/build_windows_installer.py"
@@ -61,15 +62,16 @@ jobs:
           path: install/setup.exe
 
       - name: Commit setup.exe
-        if: github.event_name == 'workflow_dispatch' && github.event.inputs.commit_installer == 'true'
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.commit_installer == 'true')
         shell: pwsh
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add install/setup.exe
+          git add -f install/setup.exe
           if (git diff --cached --quiet) {
             Write-Host "install/setup.exe is unchanged"
           } else {
             git commit -m "Build Windows setup.exe"
+            git pull --rebase origin $env:GITHUB_REF_NAME
             git push
           }

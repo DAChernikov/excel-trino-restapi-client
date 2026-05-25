@@ -41,6 +41,8 @@ class FakeQueryTable:
         self.BackgroundQuery = None
         self.RefreshOnFileOpen = None
         self.RefreshPeriod = None
+        self.EnableRefresh = None
+        self.SaveData = None
         self.WorkbookConnection = workbook_connection
 
 
@@ -270,6 +272,8 @@ def test_com_create_reuses_openpyxl_ui_and_installs_power_query(tmp_path: Path, 
     assert result_table.QueryTable.BackgroundQuery is False
     assert result_table.QueryTable.RefreshOnFileOpen is False
     assert result_table.QueryTable.RefreshPeriod == 0
+    assert result_table.QueryTable.EnableRefresh is True
+    assert result_table.QueryTable.SaveData is True
     assert env.workbook.result_connection.RefreshWithRefreshAll is True
     assert env.workbook.result_connection.RefreshOnFileOpen is False
     assert env.workbook.result_connection.OLEDBConnection.BackgroundQuery is False

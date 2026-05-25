@@ -1,0 +1,72 @@
+Trino Excel Client - Installation Guide
+=======================================
+
+Назначение
+----------
+Файл setup.exe устанавливает Trino Excel Client на Windows
+
+Что делает установщик
+---------------------
+1. Предлагает выбрать папку установки.
+2. Предлагает выбрать состав установки:
+   - GUI and CLI: графический интерфейс и консольная утилита.
+   - Only GUI: только графический интерфейс.
+3. Копирует выбранные приложения в папку установки.
+4. Предлагает создать ярлыки в Start Menu.
+5. Предлагает создать ярлык GUI на рабочем столе.
+
+Как установить
+--------------
+1. Откройте install\setup.exe.
+2. Если Windows покажет предупреждение SmartScreen, подтвердите запуск.
+3. Выберите папку установки.
+4. Выберите состав установки: Only GUI или GUI and CLI.
+5. Выберите, нужны ли ярлыки в Start Menu и на рабочем столе.
+6. Нажмите Install.
+7. Дождитесь окончания progress bar.
+8. Нажмите Finish.
+
+После установки
+---------------
+GUI:
+  Запускайте Trino Excel Client через ярлык, если он был создан, или напрямую
+  из папки установки:
+
+  trino-excel-client-gui.exe
+
+CLI:
+  Если выбран компонент CLI, в папке установки будет файл:
+
+  trino-excel-client-cmd.exe
+
+  Пример запуска:
+
+  trino-excel-client-cmd.exe create --backend com --output .\Trino_REST_Client.xlsx --overwrite
+
+Ограничения
+-----------
+- Полноценное встраивание Power Query работает только на Windows с desktop
+  Microsoft Excel.
+- На macOS/Linux можно проверять UI-шаблон и dry-run сценарии из исходников,
+  но setup.exe предназначен только для Windows.
+- Установщик не подписан цифровым сертификатом, так как в релизном процессе
+  отдельно не настроена code signing стадия.
+
+Проверка файла
+--------------
+Актуальный setup.exe должен лежать рядом с этим файлом:
+
+  install\setup.exe
+
+Если setup.exe отсутствует, его нужно собрать на Windows:
+
+  pip install -e ".[test,package]"
+  python scripts\build_windows_exe.py --clean
+  python scripts\build_windows_installer.py
+
+GitHub Actions
+--------------
+Workflow "Build Windows setup.exe" может собрать установщик автоматически.
+При запуске workflow вручную с параметром commit_installer=true или при push
+в master новый install\setup.exe коммитится обратно в репозиторий, если файл
+изменился.

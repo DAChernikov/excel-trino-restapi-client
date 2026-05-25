@@ -1,5 +1,5 @@
 from trino_excel_client.m_code import M_QUERIES
-from trino_excel_client.template import REQUIRED_QUERY_NAMES, client_sheet_names
+from trino_excel_client.template import CONFIG_TABLE, REQUIRED_QUERY_NAMES, client_sheet_names
 from trino_excel_client.validation import validate_project_contract
 
 
@@ -54,6 +54,21 @@ def test_windows_installer_outputs_repo_install_setup_exe() -> None:
 
     assert "OutputDir=..\\..\\install" in iss
     assert "OutputBaseFilename=setup" in iss
+    assert 'Name: "gui"; Description: "Only GUI"' in iss
+    assert 'Name: "full"; Description: "GUI and CLI"' in iss
+    assert 'Name: "cli"; Description: "Only CLI"' not in iss
     assert "Name: \"gui\"" in iss
     assert "Name: \"cli\"" in iss
+    assert "Flags: fixed" in iss
+    assert "Tasks: startmenuicon" in iss
+    assert 'Name: "startmenuicon"' in iss
+    assert 'Name: "desktopicon"' in iss
     assert "install\") / \"setup.exe\"" in build_script
+
+
+def test_refresh_policy_is_not_user_configurable() -> None:
+    config_parameters = {row[0] for row in CONFIG_TABLE.rows}
+    assert "refresh_on_file_open" not in config_parameters
+    assert "refresh_period" not in config_parameters
+    assert "background_query" not in config_parameters
+    assert "refresh_with_refresh_all" not in config_parameters

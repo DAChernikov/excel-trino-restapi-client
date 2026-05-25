@@ -24,26 +24,25 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "russian"; MessagesFile: "compiler:Languages\Russian.isl"
 
 [Types]
-Name: "full"; Description: "GUI and CLI"
 Name: "gui"; Description: "Only GUI"
-Name: "cli"; Description: "Only CLI"
-Name: "custom"; Description: "Custom"; Flags: iscustom
+Name: "full"; Description: "GUI and CLI"
 
 [Components]
-Name: "gui"; Description: "GUI application"; Types: full gui custom
-Name: "cli"; Description: "Command line application"; Types: full cli custom
+Name: "gui"; Description: "GUI application"; Types: gui full; Flags: fixed
+Name: "cli"; Description: "Command line application"; Types: full
 
 [Files]
 Source: "..\..\dist\trino-excel-client-gui.exe"; DestDir: "{app}"; Flags: ignoreversion; Components: gui
 Source: "..\..\dist\trino-excel-client-cmd.exe"; DestDir: "{app}"; Flags: ignoreversion; Components: cli
 
 [Icons]
-Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Components: gui
-Name: "{autoprograms}\{#MyAppName} CMD"; Filename: "{app}\{#MyCmdExeName}"; Components: cli
+Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Components: gui; Tasks: startmenuicon
+Name: "{autoprograms}\{#MyAppName} CMD"; Filename: "{app}\{#MyCmdExeName}"; Components: cli; Tasks: startmenuicon
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon; Components: gui
 
 [Tasks]
-Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional shortcuts:"
+Name: "startmenuicon"; Description: "Create Start Menu shortcuts"; GroupDescription: "Additional shortcuts:"; Flags: checkedonce
+Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional shortcuts:"; Flags: unchecked
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent; Components: gui

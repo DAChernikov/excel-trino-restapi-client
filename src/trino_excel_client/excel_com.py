@@ -51,15 +51,19 @@ def _add_power_queries(wb) -> None:
         )
 
 
-def _set_connection_refresh_policy(connection, *, refresh_with_refresh_all: bool) -> None:
+def _safe_set_attr(obj, attr_name: str, value) -> None:
+    try:
+        setattr(obj, attr_name, value)
+    except Exception:
+        pass
+
+
+def _disable_automatic_connection_refresh(connection) -> None:
     for attr_name, value in (
-        ("RefreshWithRefreshAll", refresh_with_refresh_all),
+        ("RefreshWithRefreshAll", False),
         ("RefreshOnFileOpen", False),
     ):
-        try:
-            setattr(connection, attr_name, value)
-        except Exception:
-            pass
+        _safe_set_attr(connection, attr_name, value)
 
     for child_name in ("OLEDBConnection", "ODBCConnection"):
         try:
@@ -72,13 +76,15 @@ def _set_connection_refresh_policy(connection, *, refresh_with_refresh_all: bool
             ("RefreshPeriod", 0),
             ("EnableRefresh", True),
         ):
-            try:
-                setattr(child, attr_name, value)
-            except Exception:
-                pass
+            _safe_set_attr(child, attr_name, value)
 
 
-def _configure_workbook_refresh_policy(wb, result_connection=None) -> None:
+def _enable_manual_result_refresh(connection) -> None:
+    _disable_automatic_connection_refresh(connection)
+    _safe_set_attr(connection, "RefreshWithRefreshAll", True)
+
+
+def _enforce_manual_refresh_only(wb, result_connection=None) -> None:
     result_connection_name = None
     if result_connection is not None:
         try:
@@ -109,10 +115,10 @@ def _configure_workbook_refresh_policy(wb, result_connection=None) -> None:
                 or (result_connection_name is not None and connection_name == result_connection_name)
             )
         )
-        _set_connection_refresh_policy(
-            connection,
-            refresh_with_refresh_all=is_result_connection,
-        )
+        if is_result_connection:
+            _enable_manual_result_refresh(connection)
+        else:
+            _disable_automatic_connection_refresh(connection)
 
 
 def _delete_result_table_if_exists(result_ws) -> None:
@@ -172,12 +178,14 @@ def _try_create_result_table(wb, sheet_prefix: str = "Trino"):
     query_table = list_object.QueryTable
     query_table.CommandType = XL_CMD_SQL
     query_table.CommandText = "SELECT * FROM [TrinoResult]"
-    query_table.BackgroundQuery = False
-    query_table.RefreshOnFileOpen = False
-    try:
-        query_table.RefreshPeriod = 0
-    except Exception:
-        pass
+    for attr_name, value in (
+        ("BackgroundQuery", False),
+        ("RefreshOnFileOpen", False),
+        ("RefreshPeriod", 0),
+        ("EnableRefresh", True),
+        ("SaveData", True),
+    ):
+        _safe_set_attr(query_table, attr_name, value)
 
     result_connection = None
     try:
@@ -186,7 +194,7 @@ def _try_create_result_table(wb, sheet_prefix: str = "Trino"):
         pass
 
     if result_connection is not None:
-        _set_connection_refresh_policy(result_connection, refresh_with_refresh_all=True)
+        _enable_manual_result_refresh(result_connection)
 
     return result_connection
 
@@ -201,7 +209,7 @@ def install_power_query_into_workbook(wb, sheet_prefix: str = "Trino") -> None:
         result_ws = wb.Worksheets(client_sheet_names(sheet_prefix).result)
         _write_result_table_creation_note(result_ws, exc)
     finally:
-        _configure_workbook_refresh_policy(wb, result_connection=result_connection)
+        _enforce_manual_refresh_only(wb, result_connection=result_connection)
 
 
 def _open_workbook_and_install_power_query(
