@@ -1,0 +1,36 @@
+installer/windows/trino-excel-client.iss
+  s_819cc380a7b08a::t_74e5dc79951ca4 14,17-18,30-31,34-35,47-48,52-59
+README.md
+  s_819cc380a7b08a::t_dd0347030d1c43 382
+  s_819cc380a7b08a::t_fb7f0389f90f58 44-45,383
+src/trino_excel_client/gui_app.py
+  s_819cc380a7b08a::t_216b860a76e610 24,30-31,44,46,185,187-188,192-193,198
+  s_819cc380a7b08a::t_84bbcd11f9274d 23,25-29,186
+tests/test_contract.py
+  s_819cc380a7b08a::t_341835a6c249ff 58
+  s_819cc380a7b08a::t_a4bc6bdc0f9d8a 57,59-62,70-74,97-105
+install/installation_guide.txt
+  s_819cc380a7b08a::t_445c489994ab13 12-13,24
+  s_819cc380a7b08a::t_8e13fcf1bf0a3a 22-23
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.1",
+  "base_commit_sha": "327f25a993fdd46befd24aaa757d0555031f0df6",
+  "prompts": {},
+  "humans": {
+    "h_29db3271bff073": {
+      "author": "DAChernikov <129949710+DAChernikov@users.noreply.github.com>"
+    }
+  },
+  "sessions": {
+    "s_819cc380a7b08a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e4a8c-feec-7863-84d3-818764e87a13",
+        "model": "gpt-5.5"
+      },
+      "human_author": "DAChernikov <129949710+DAChernikov@users.noreply.github.com>"
+    }
+  }
+}
