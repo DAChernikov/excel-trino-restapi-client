@@ -1,0 +1,23 @@
+tests/test_contract.py
+  s_819cc380a7b08a::t_bd1e38b5fa894c 59-61,101,104
+scripts/build_windows_exe.py
+  s_819cc380a7b08a::t_e299679bbedd02 54-56,62-64
+installer/windows/trino-excel-client.iss
+  s_819cc380a7b08a::t_95cf940c6ace7d 43,46-48,55
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.1",
+  "base_commit_sha": "7d86041ee1e2cc08c3eae35b15b442e9e88013c9",
+  "prompts": {},
+  "sessions": {
+    "s_819cc380a7b08a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e4a8c-feec-7863-84d3-818764e87a13",
+        "model": "gpt-5.5"
+      },
+      "human_author": "DAChernikov <129949710+DAChernikov@users.noreply.github.com>"
+    }
+  }
+}
