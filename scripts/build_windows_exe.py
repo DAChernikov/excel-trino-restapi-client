@@ -77,7 +77,7 @@ def main() -> None:
             _run_pyinstaller(
                 args,
                 name=args.name + "-cmd",
-                entrypoint="src/trino_excel_client/cli.py",
+                entrypoint="scripts/pyinstaller_cli_entry.py",
                 windowed=False,
             )
         )
@@ -86,7 +86,7 @@ def main() -> None:
             _run_pyinstaller(
                 args,
                 name=args.name + "-gui",
-                entrypoint="src/trino_excel_client/gui_app.py",
+                entrypoint="scripts/pyinstaller_gui_entry.py",
                 windowed=True,
             )
         )

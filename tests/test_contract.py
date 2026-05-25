@@ -72,3 +72,16 @@ def test_refresh_policy_is_not_user_configurable() -> None:
     assert "refresh_period" not in config_parameters
     assert "background_query" not in config_parameters
     assert "refresh_with_refresh_all" not in config_parameters
+
+
+def test_pyinstaller_uses_package_safe_entrypoints() -> None:
+    build_script = _read_text("scripts/build_windows_exe.py")
+    cli_entry = _read_text("scripts/pyinstaller_cli_entry.py")
+    gui_entry = _read_text("scripts/pyinstaller_gui_entry.py")
+
+    assert 'entrypoint="scripts/pyinstaller_cli_entry.py"' in build_script
+    assert 'entrypoint="scripts/pyinstaller_gui_entry.py"' in build_script
+    assert 'entrypoint="src/trino_excel_client/cli.py"' not in build_script
+    assert 'entrypoint="src/trino_excel_client/gui_app.py"' not in build_script
+    assert "from trino_excel_client.cli import main" in cli_entry
+    assert "from trino_excel_client.gui_app import main" in gui_entry
