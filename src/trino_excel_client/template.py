@@ -95,7 +95,6 @@ REQUIRED_QUERY_NAMES = (
     "qExtraCredentials",
     "fnTrinoRestQuery",
     "TrinoResult",
-    "TrinoResultSchema",
 )
 
 REQUIRED_TABLE_NAMES = (

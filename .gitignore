@@ -8,3 +8,4 @@ __pycache__/
 ~$*.xlsx
 ~$*.xlsm
 .idea/
+.DS_Store

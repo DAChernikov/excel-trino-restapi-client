@@ -502,13 +502,4 @@ let
 in
     Result
 ''',
-    "TrinoResultSchema": r'''
-let
-    Source = TrinoResult,
-    Schema = Table.Schema(Source),
-    Selected = Table.SelectColumns(Schema, {"Name", "Kind", "TypeName", "Position"}),
-    Sorted = Table.Sort(Selected, {{"Position", Order.Ascending}})
-in
-    Sorted
-''',
 }

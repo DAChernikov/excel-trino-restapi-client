@@ -35,17 +35,19 @@ class FakeRange:
 
 
 class FakeQueryTable:
-    def __init__(self) -> None:
+    def __init__(self, workbook_connection=None) -> None:
         self.CommandType = None
         self.CommandText = None
         self.BackgroundQuery = None
         self.RefreshOnFileOpen = None
+        self.RefreshPeriod = None
+        self.WorkbookConnection = workbook_connection
 
 
 class FakeListObject:
-    def __init__(self) -> None:
+    def __init__(self, workbook_connection=None) -> None:
         self.Name = None
-        self.QueryTable = FakeQueryTable()
+        self.QueryTable = FakeQueryTable(workbook_connection)
         self.deleted = False
 
     def Delete(self) -> None:
@@ -53,10 +55,10 @@ class FakeListObject:
 
 
 class FakeListObjects:
-    def __init__(self) -> None:
+    def __init__(self, result_connection=None) -> None:
         self.add_calls: list[dict[str, object]] = []
         self.fail_add = False
-        self.result = FakeListObject()
+        self.result = FakeListObject(result_connection)
 
     def __call__(self, name: str) -> FakeListObject:
         raise KeyError(name)
@@ -77,9 +79,9 @@ class FakeListObjects:
 
 
 class FakeWorksheet:
-    def __init__(self, name: str) -> None:
+    def __init__(self, name: str, result_connection=None) -> None:
         self.name = name
-        self.ListObjects = FakeListObjects()
+        self.ListObjects = FakeListObjects(result_connection)
         self.ranges: dict[str, FakeRange] = {}
 
     def Range(self, address: str) -> FakeRange:
@@ -89,9 +91,9 @@ class FakeWorksheet:
 
 
 class FakeWorksheets:
-    def __init__(self, sheet_prefix: str = "Trino") -> None:
+    def __init__(self, sheet_prefix: str = "Trino", result_connection=None) -> None:
         self.query_sheet = FakeWorksheet(client_sheet_names(sheet_prefix).query)
-        self.result_sheet = FakeWorksheet(client_sheet_names(sheet_prefix).result)
+        self.result_sheet = FakeWorksheet(client_sheet_names(sheet_prefix).result, result_connection)
         self.by_name = {
             self.query_sheet.name: self.query_sheet,
             self.result_sheet.name: self.result_sheet,
@@ -118,11 +120,39 @@ class FakeQueries:
         )
 
 
+class FakeConnectionChild:
+    def __init__(self) -> None:
+        self.BackgroundQuery = None
+        self.RefreshOnFileOpen = None
+        self.RefreshPeriod = None
+        self.EnableRefresh = None
+
+
+class FakeConnection:
+    def __init__(self, name: str) -> None:
+        self.Name = name
+        self.RefreshWithRefreshAll = None
+        self.RefreshOnFileOpen = None
+        self.OLEDBConnection = FakeConnectionChild()
+
+
+class FakeConnections:
+    def __init__(self, connections: list[FakeConnection]) -> None:
+        self._connections = connections
+        self.Count = len(connections)
+
+    def __call__(self, index: int) -> FakeConnection:
+        return self._connections[index - 1]
+
+
 class FakeWorkbook:
     def __init__(self, path: Path) -> None:
         self.path = path
         self.Queries = FakeQueries()
-        self.Worksheets = FakeWorksheets()
+        self.helper_connection = FakeConnection("Query - qConfig")
+        self.result_connection = FakeConnection("Query - TrinoResult")
+        self.Connections = FakeConnections([self.helper_connection, self.result_connection])
+        self.Worksheets = FakeWorksheets(result_connection=self.result_connection)
         self.saved = False
         self.save_as_calls: list[dict[str, object]] = []
         self.close_calls: list[bool] = []
@@ -238,6 +268,14 @@ def test_com_create_reuses_openpyxl_ui_and_installs_power_query(tmp_path: Path, 
     assert result_table.QueryTable.CommandType == excel_com.XL_CMD_SQL
     assert result_table.QueryTable.CommandText == "SELECT * FROM [TrinoResult]"
     assert result_table.QueryTable.BackgroundQuery is False
+    assert result_table.QueryTable.RefreshOnFileOpen is False
+    assert result_table.QueryTable.RefreshPeriod == 0
+    assert env.workbook.result_connection.RefreshWithRefreshAll is True
+    assert env.workbook.result_connection.RefreshOnFileOpen is False
+    assert env.workbook.result_connection.OLEDBConnection.BackgroundQuery is False
+    assert env.workbook.result_connection.OLEDBConnection.RefreshPeriod == 0
+    assert env.workbook.helper_connection.RefreshWithRefreshAll is False
+    assert env.workbook.helper_connection.RefreshOnFileOpen is False
 
 
 def test_com_install_preserves_existing_workbook_content(tmp_path: Path, monkeypatch) -> None:

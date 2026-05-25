@@ -51,6 +51,70 @@ def _add_power_queries(wb) -> None:
         )
 
 
+def _set_connection_refresh_policy(connection, *, refresh_with_refresh_all: bool) -> None:
+    for attr_name, value in (
+        ("RefreshWithRefreshAll", refresh_with_refresh_all),
+        ("RefreshOnFileOpen", False),
+    ):
+        try:
+            setattr(connection, attr_name, value)
+        except Exception:
+            pass
+
+    for child_name in ("OLEDBConnection", "ODBCConnection"):
+        try:
+            child = getattr(connection, child_name)
+        except Exception:
+            continue
+        for attr_name, value in (
+            ("BackgroundQuery", False),
+            ("RefreshOnFileOpen", False),
+            ("RefreshPeriod", 0),
+            ("EnableRefresh", True),
+        ):
+            try:
+                setattr(child, attr_name, value)
+            except Exception:
+                pass
+
+
+def _configure_workbook_refresh_policy(wb, result_connection=None) -> None:
+    result_connection_name = None
+    if result_connection is not None:
+        try:
+            result_connection_name = result_connection.Name
+        except Exception:
+            result_connection_name = None
+
+    try:
+        connection_count = wb.Connections.Count
+    except Exception:
+        return
+
+    for idx in range(1, connection_count + 1):
+        try:
+            connection = wb.Connections(idx)
+        except Exception:
+            continue
+
+        try:
+            connection_name = connection.Name
+        except Exception:
+            connection_name = ""
+
+        is_result_connection = (
+            result_connection is not None
+            and (
+                connection is result_connection
+                or (result_connection_name is not None and connection_name == result_connection_name)
+            )
+        )
+        _set_connection_refresh_policy(
+            connection,
+            refresh_with_refresh_all=is_result_connection,
+        )
+
+
 def _delete_result_table_if_exists(result_ws) -> None:
     try:
         result_ws.ListObjects("tblTrinoResult").Delete()
@@ -79,7 +143,7 @@ def _write_result_table_creation_note(result_ws, exc: Exception) -> None:
         pass
 
 
-def _try_create_result_table(wb, sheet_prefix: str = "Trino") -> None:
+def _try_create_result_table(wb, sheet_prefix: str = "Trino"):
     result_sheet_name = client_sheet_names(sheet_prefix).result
     result_ws = wb.Worksheets(result_sheet_name)
 
@@ -110,16 +174,34 @@ def _try_create_result_table(wb, sheet_prefix: str = "Trino") -> None:
     query_table.CommandText = "SELECT * FROM [TrinoResult]"
     query_table.BackgroundQuery = False
     query_table.RefreshOnFileOpen = False
+    try:
+        query_table.RefreshPeriod = 0
+    except Exception:
+        pass
+
+    result_connection = None
+    try:
+        result_connection = query_table.WorkbookConnection
+    except Exception:
+        pass
+
+    if result_connection is not None:
+        _set_connection_refresh_policy(result_connection, refresh_with_refresh_all=True)
+
+    return result_connection
 
 
 def install_power_query_into_workbook(wb, sheet_prefix: str = "Trino") -> None:
     _add_power_queries(wb)
 
+    result_connection = None
     try:
-        _try_create_result_table(wb, sheet_prefix=sheet_prefix)
+        result_connection = _try_create_result_table(wb, sheet_prefix=sheet_prefix)
     except Exception as exc:
         result_ws = wb.Worksheets(client_sheet_names(sheet_prefix).result)
         _write_result_table_creation_note(result_ws, exc)
+    finally:
+        _configure_workbook_refresh_policy(wb, result_connection=result_connection)
 
 
 def _open_workbook_and_install_power_query(

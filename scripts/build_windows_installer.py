@@ -5,6 +5,8 @@ import shutil
 import subprocess
 from pathlib import Path
 
+EXPECTED_INSTALLER = Path("install") / "setup.exe"
+
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -41,7 +43,9 @@ def main() -> None:
     command = [compiler, str(args.script)]
     print(">", " ".join(command))
     subprocess.run(command, check=True)
-    print("Built installer under dist\\installer")
+    if not EXPECTED_INSTALLER.exists():
+        raise SystemExit(f"Installer was not created: {EXPECTED_INSTALLER}")
+    print(f"Built installer: {EXPECTED_INSTALLER}")
 
 
 if __name__ == "__main__":

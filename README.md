@@ -28,10 +28,31 @@ Windows - основная платформа для рабочей книги �
 
 Рекомендуемый пользовательский вход - GUI-приложение `Trino Excel Client`.
 
-CLI тоже доступен:
+## Установка на Windows
+
+Основной пользовательский сценарий - готовый installer из репозитория:
+
+```text
+install\setup.exe
+```
+
+Как установить:
+
+1. Откройте `install\setup.exe`.
+2. Выберите папку установки.
+3. Выберите состав установки:
+   - `GUI and CLI` - графический интерфейс и консольная утилита.
+   - `Only GUI` - только графический интерфейс.
+   - `Only CLI` - только консольная утилита.
+4. Нажмите `Install` и дождитесь завершения progress bar.
+5. На финальном экране нажмите `Finish`.
+
+После установки GUI доступен как `Trino Excel Client` через Start Menu или ярлык на рабочем столе, если ярлык был выбран при установке.
+
+CLI, если он установлен, доступен как `trino-excel-client-cmd.exe` в папке установки:
 
 ```bat
-trino-excel-client create --backend com --output .\build\Trino_REST_Client.xlsx --overwrite
+trino-excel-client-cmd.exe create --backend com --output .\build\Trino_REST_Client.xlsx --overwrite
 ```
 
 ### macOS / Linux / Unix
@@ -55,7 +76,7 @@ GUI dry-run:
 trino-excel-client gui --dry-run
 ```
 
-## Установка из исходников
+## Установка из исходников для разработки
 
 ```bash
 python -m venv .venv
@@ -83,13 +104,13 @@ pytest
 Windows, рабочая книга с Power Query:
 
 ```bat
-trino-excel-client create --backend com --output .\build\Trino_REST_Client.xlsx --overwrite
+trino-excel-client-cmd.exe create --backend com --output .\build\Trino_REST_Client.xlsx --overwrite
 ```
 
 Windows с видимым Excel для диагностики:
 
 ```bat
-trino-excel-client create --backend com --output .\build\Trino_REST_Client.xlsx --overwrite --visible
+trino-excel-client-cmd.exe create --backend com --output .\build\Trino_REST_Client.xlsx --overwrite --visible
 ```
 
 macOS/Linux, только UI-preview:
@@ -103,13 +124,13 @@ trino-excel-client create --backend openpyxl --output ./build/Trino_UI_Preview.x
 Windows, сохранить копию с Trino-клиентом:
 
 ```bat
-trino-excel-client install --backend com --workbook .\reports\Workbook.xlsx --output .\build\Workbook_With_Trino.xlsx --overwrite
+trino-excel-client-cmd.exe install --backend com --workbook .\reports\Workbook.xlsx --output .\build\Workbook_With_Trino.xlsx --overwrite
 ```
 
 Windows, обновить книгу на месте:
 
 ```bat
-trino-excel-client install --backend com --workbook .\reports\Workbook.xlsx
+trino-excel-client-cmd.exe install --backend com --workbook .\reports\Workbook.xlsx
 ```
 
 macOS/Linux, добавить только UI-листы:
@@ -134,6 +155,8 @@ trino-excel-client install --backend openpyxl --workbook ./reports/Workbook.xlsx
 6. Результат появится на листе `Trino Result`.
 
 При первом обращении Excel может спросить credentials/privacy level для Trino host. Обычно нужно выбрать `Anonymous`, потому что Basic Auth передается M-кодом через HTTP header.
+
+Клиент настроен так, чтобы не отправлять запросы в Trino при открытии книги или при редактировании SQL. Запрос должен уходить только после пользовательского refresh-действия в Excel, например `Данные -> Обновить все`.
 
 ## Лимиты и BigData
 
@@ -196,7 +219,7 @@ Power Query использует metadata Trino `columns[type]`, чтобы на
 - `timestamp with time zone` -> `datetimezone`
 - `varchar/char/json/uuid/ipaddress` -> `text`
 
-Также создается запрос `TrinoResultSchema`. Его можно загрузить вручную через `Queries & Connections`, если нужно посмотреть имена и типы колонок.
+Отдельный schema-запрос в шаблон не добавляется, потому что просмотр схемы через Power Query тоже выполняет обращение к Trino. Это сделано намеренно: книга не должна запускать дополнительные запросы сама по себе.
 
 ## Безопасность
 
@@ -244,7 +267,7 @@ Power Query использует metadata Trino `columns[type]`, чтобы на
 Запуск GUI из исходников:
 
 ```bat
-trino-excel-client gui
+trino-excel-client-gui
 ```
 
 Dry-run:
@@ -350,4 +373,14 @@ dist\trino-excel-client-gui.exe
 python scripts\build_windows_installer.py
 ```
 
-Installer ожидает, что установлен Inno Setup compiler `ISCC.exe`.
+Installer ожидает, что установлен Inno Setup compiler `ISCC.exe`. Готовый установщик будет создан как `install\setup.exe`.
+
+Чтобы пользователи после клонирования репозитория сразу видели `install\setup.exe`, соберите installer на Windows и закоммитьте этот файл. Через GitHub Actions это можно сделать вручную: `Actions -> Build Windows setup.exe -> Run workflow -> commit_installer=true`.
+
+В setup.exe доступны варианты установки:
+
+- `GUI and CLI` - установить графическое приложение и консольную утилиту.
+- `Only GUI` - установить только `trino-excel-client-gui.exe`.
+- `Only CLI` - установить только `trino-excel-client-cmd.exe`.
+
+Оба exe являются self-contained PyInstaller-артефактами. После установки папку приложения можно перенести или скопировать, сами exe продолжат работать, но ярлыки Windows будут указывать на старое место до переустановки или ручного обновления ярлыков.

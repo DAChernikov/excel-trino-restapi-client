@@ -3,13 +3,13 @@
 ## Windows: создать рабочую книгу
 
 ```bat
-trino-excel-client create --backend com --output .\build\Trino_REST_Client.xlsx --overwrite --visible
+trino-excel-client-cmd.exe create --backend com --output .\build\Trino_REST_Client.xlsx --overwrite --visible
 ```
 
 ## Windows: встроить клиент в существующую книгу
 
 ```bat
-trino-excel-client install --backend com --workbook .\input\Analytics.xlsx --output .\build\Analytics_With_Trino.xlsx --overwrite --visible
+trino-excel-client-cmd.exe install --backend com --workbook .\input\Analytics.xlsx --output .\build\Analytics_With_Trino.xlsx --overwrite --visible
 ```
 
 ## macOS/Linux: посмотреть UI-шаблон
@@ -62,6 +62,20 @@ order by 1
 
 ```bat
 python scripts\windows_smoke_test.py --visible
+```
+
+## Сборка Windows setup.exe
+
+```bat
+pip install -e ".[test,package]"
+python scripts\build_windows_exe.py --clean
+python scripts\build_windows_installer.py
+```
+
+Результат:
+
+```text
+install\setup.exe
 ```
 
 ## Сборка Windows GUI exe
