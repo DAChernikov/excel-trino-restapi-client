@@ -1,0 +1,44 @@
+installer/windows/trino-excel-client.iss
+  s_819cc380a7b08a::t_cb3ae87e4728e0 6,25-26,45-47
+src/trino_excel_client/gui_app.py
+  s_819cc380a7b08a::t_3df41f21589715 5,22,34-50,53,71,76-84
+scripts/build_app_icon.py
+  s_819cc380a7b08a::t_967467537258a7 1-2,4-8,10-11,13-17,42-95,111,113-115
+  s_819cc380a7b08a::t_36f70d81890af4 3,9,12,18-41,96-110,112,116-120
+scripts/build_windows_exe.py
+  s_819cc380a7b08a::t_7a0d20d6fd16c2 9-10,44-49,69
+  s_819cc380a7b08a::t_299e43fb7d7e70 70
+  s_819cc380a7b08a::t_45b9e91eda5f87 4,71
+tests/test_contract.py
+  s_819cc380a7b08a::t_294610af35b6c3 100-101,106-111
+  s_819cc380a7b08a::t_83d8c1a9f6a874 118-119,123-124
+  s_819cc380a7b08a::t_79a156062b366c 57-59,98-99,112-117,120-122
+install/installation_guide.txt
+  s_819cc380a7b08a::t_05e7bfe51541e4 65
+README.md
+  s_819cc380a7b08a::t_d0973dc31c6fa3 364-365
+  s_819cc380a7b08a::t_bea7102a7bca4d 360
+pyproject.toml
+  s_819cc380a7b08a::t_c0918ddf871e17 22
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.1",
+  "base_commit_sha": "77bd639ab366fa3f5c8f1a40fd09d10b2c68a84f",
+  "prompts": {},
+  "humans": {
+    "h_29db3271bff073": {
+      "author": "DAChernikov <129949710+DAChernikov@users.noreply.github.com>"
+    }
+  },
+  "sessions": {
+    "s_819cc380a7b08a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e4a8c-feec-7863-84d3-818764e87a13",
+        "model": "gpt-5.5"
+      },
+      "human_author": "DAChernikov <129949710+DAChernikov@users.noreply.github.com>"
+    }
+  }
+}
