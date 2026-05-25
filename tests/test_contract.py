@@ -54,8 +54,12 @@ def test_windows_installer_outputs_repo_install_setup_exe() -> None:
 
     assert "OutputDir=..\\..\\install" in iss
     assert "OutputBaseFilename=setup" in iss
-    assert 'Name: "gui"; Description: "Only GUI"' in iss
-    assert 'Name: "full"; Description: "GUI and CLI"' in iss
+    assert "DisableDirPage=no" in iss
+    assert "UsePreviousAppDir=no" not in iss
+    assert "CloseApplications=yes" in iss
+    assert "RestartApplications=no" in iss
+    assert 'Name: "gui"; Description: "Только GUI"' in iss
+    assert 'Name: "full"; Description: "GUI и CLI"' in iss
     assert 'Name: "cli"; Description: "Only CLI"' not in iss
     assert "Name: \"gui\"" in iss
     assert "Name: \"cli\"" in iss
@@ -63,6 +67,11 @@ def test_windows_installer_outputs_repo_install_setup_exe() -> None:
     assert "Tasks: startmenuicon" in iss
     assert 'Name: "startmenuicon"' in iss
     assert 'Name: "desktopicon"' in iss
+    assert "[UninstallRun]" in iss
+    assert "taskkill /IM {#MyAppExeName}" in iss
+    assert "taskkill /IM {#MyCmdExeName}" in iss
+    assert "[UninstallDelete]" in iss
+    assert 'Name: "{app}\\build"' in iss
     assert "install\") / \"setup.exe\"" in build_script
 
 
@@ -85,3 +94,12 @@ def test_pyinstaller_uses_package_safe_entrypoints() -> None:
     assert 'entrypoint="src/trino_excel_client/gui_app.py"' not in build_script
     assert "from trino_excel_client.cli import main" in cli_entry
     assert "from trino_excel_client.gui_app import main" in gui_entry
+
+
+def test_gui_defaults_save_workbooks_to_desktop() -> None:
+    gui_app = _read_text("src/trino_excel_client/gui_app.py")
+
+    assert 'self.create_output = tk.StringVar(value=str(_desktop_path("Trino_REST_Client.xlsx")))' in gui_app
+    assert 'self.install_output = tk.StringVar(value=str(_desktop_path("Workbook_With_Trino.xlsx")))' in gui_app
+    assert 'Path("build") / "Trino_REST_Client.xlsx"' not in gui_app
+    assert 'Path("build") / "Workbook_With_Trino.xlsx"' not in gui_app

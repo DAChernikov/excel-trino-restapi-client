@@ -20,6 +20,15 @@ TEXT_DARK = "#1F2933"
 TEXT_MUTED = "#5F6B7A"
 
 
+def _default_output_dir() -> Path:
+    desktop = Path.home() / "Desktop"
+    return desktop if desktop.exists() else Path.home()
+
+
+def _desktop_path(filename: str) -> Path:
+    return _default_output_dir() / filename
+
+
 class TrinoExcelClientApp(tk.Tk):
     def __init__(self, dry_run: bool = False) -> None:
         super().__init__()
@@ -32,9 +41,9 @@ class TrinoExcelClientApp(tk.Tk):
         self.create_backend = tk.StringVar(value="auto")
         self.install_backend = tk.StringVar(value="auto")
         self.sheet_prefix = tk.StringVar(value="Trino")
-        self.create_output = tk.StringVar(value=str(Path("build") / "Trino_REST_Client.xlsx"))
+        self.create_output = tk.StringVar(value=str(_desktop_path("Trino_REST_Client.xlsx")))
         self.install_source = tk.StringVar(value="")
-        self.install_output = tk.StringVar(value=str(Path("build") / "Workbook_With_Trino.xlsx"))
+        self.install_output = tk.StringVar(value=str(_desktop_path("Workbook_With_Trino.xlsx")))
         self.overwrite = tk.BooleanVar(value=True)
         self.visible_excel = tk.BooleanVar(value=False)
         self.dry_run = tk.BooleanVar(value=dry_run)
@@ -173,13 +182,20 @@ class TrinoExcelClientApp(tk.Tk):
         ttk.Label(row, text=f"Текущая платформа: {platform.system()}", style="CardMuted.TLabel").pack(side="left", padx=(18, 0))
 
     def _choose_path(self, variable: tk.StringVar, save: bool) -> None:
+        current = Path(variable.get()).expanduser()
+        initial_dir = current.parent if current.parent.exists() else _default_output_dir()
+        initial_file = current.name
+
         if save:
             path = filedialog.asksaveasfilename(
                 defaultextension=".xlsx",
+                initialdir=str(initial_dir),
+                initialfile=initial_file,
                 filetypes=(("Excel workbook", "*.xlsx"), ("Excel macro workbook", "*.xlsm"), ("All files", "*.*")),
             )
         else:
             path = filedialog.askopenfilename(
+                initialdir=str(initial_dir),
                 filetypes=(("Excel workbook", "*.xlsx *.xlsm"), ("All files", "*.*")),
             )
         if path:

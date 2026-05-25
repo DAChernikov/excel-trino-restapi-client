@@ -11,8 +11,11 @@ AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
 DefaultDirName={autopf}\Trino Excel Client
 DefaultGroupName={#MyAppName}
+DisableDirPage=no
 DisableProgramGroupPage=yes
 AlwaysShowComponentsList=yes
+CloseApplications=yes
+RestartApplications=no
 OutputDir=..\..\install
 OutputBaseFilename=setup
 Compression=lzma
@@ -24,12 +27,12 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "russian"; MessagesFile: "compiler:Languages\Russian.isl"
 
 [Types]
-Name: "gui"; Description: "Only GUI"
-Name: "full"; Description: "GUI and CLI"
+Name: "gui"; Description: "Только GUI"
+Name: "full"; Description: "GUI и CLI"
 
 [Components]
-Name: "gui"; Description: "GUI application"; Types: gui full; Flags: fixed
-Name: "cli"; Description: "Command line application"; Types: full
+Name: "gui"; Description: "Графический интерфейс"; Types: gui full; Flags: fixed
+Name: "cli"; Description: "Консольная утилита"; Types: full
 
 [Files]
 Source: "..\..\dist\trino-excel-client-gui.exe"; DestDir: "{app}"; Flags: ignoreversion; Components: gui
@@ -41,8 +44,16 @@ Name: "{autoprograms}\{#MyAppName} CMD"; Filename: "{app}\{#MyCmdExeName}"; Comp
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon; Components: gui
 
 [Tasks]
-Name: "startmenuicon"; Description: "Create Start Menu shortcuts"; GroupDescription: "Additional shortcuts:"; Flags: checkedonce
-Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional shortcuts:"; Flags: unchecked
+Name: "startmenuicon"; Description: "Создать ярлыки в Start Menu"; GroupDescription: "Дополнительные ярлыки:"; Flags: checkedonce
+Name: "desktopicon"; Description: "Создать ярлык GUI на рабочем столе"; GroupDescription: "Дополнительные ярлыки:"; Flags: unchecked
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent; Components: gui
+
+[UninstallRun]
+Filename: "{cmd}"; Parameters: "/C taskkill /IM {#MyAppExeName} /F /T >NUL 2>&1"; Flags: runhidden
+Filename: "{cmd}"; Parameters: "/C taskkill /IM {#MyCmdExeName} /F /T >NUL 2>&1"; Flags: runhidden
+
+[UninstallDelete]
+Type: filesandordirs; Name: "{app}\build"
+Type: dirifempty; Name: "{app}"
