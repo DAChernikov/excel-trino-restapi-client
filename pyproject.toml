@@ -17,14 +17,9 @@ dependencies = [
 test = [
     "pytest>=8",
 ]
-package = [
-    "pyinstaller>=6; platform_system == 'Windows'",
-    "pillow>=10",
-]
 
 [project.scripts]
 trino-excel-client = "trino_excel_client.cli:main"
-trino-excel-client-gui = "trino_excel_client.gui_app:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

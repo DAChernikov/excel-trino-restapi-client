@@ -19,10 +19,3 @@ def test_parser_accepts_validate() -> None:
     parser = build_parser()
     args = parser.parse_args(["validate"])
     assert args.command == "validate"
-
-
-def test_parser_accepts_gui_dry_run() -> None:
-    parser = build_parser()
-    args = parser.parse_args(["gui", "--dry-run"])
-    assert args.command == "gui"
-    assert args.dry_run is True

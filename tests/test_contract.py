@@ -48,38 +48,6 @@ def test_sheet_names_are_excel_safe() -> None:
     assert len(names.help) <= 31
 
 
-def test_windows_installer_outputs_repo_install_setup_exe() -> None:
-    iss = _read_text("installer/windows/trino-excel-client.iss")
-    build_script = _read_text("scripts/build_windows_installer.py")
-
-    assert "OutputDir=..\\..\\install" in iss
-    assert "OutputBaseFilename=setup" in iss
-    assert 'SetupIconFile={#MyAppIcon}' in iss
-    assert 'UninstallDisplayIcon={app}\\{#MyAppExeName}' in iss
-    assert 'DestDir: "{app}\\assets"; DestName: "app_icon.ico"' in iss
-    assert 'IconFilename: "{app}\\assets\\app_icon.ico"' in iss
-    assert "ie4uinit.exe -show" in iss
-    assert "DisableDirPage=no" in iss
-    assert "UsePreviousAppDir=no" not in iss
-    assert "CloseApplications=yes" in iss
-    assert "RestartApplications=no" in iss
-    assert 'Name: "gui"; Description: "Только GUI"' in iss
-    assert 'Name: "full"; Description: "GUI и CLI"' in iss
-    assert 'Name: "cli"; Description: "Only CLI"' not in iss
-    assert "Name: \"gui\"" in iss
-    assert "Name: \"cli\"" in iss
-    assert "Flags: fixed" in iss
-    assert "Tasks: startmenuicon" in iss
-    assert 'Name: "startmenuicon"' in iss
-    assert 'Name: "desktopicon"' in iss
-    assert "[UninstallRun]" in iss
-    assert "taskkill /IM {#MyAppExeName}" in iss
-    assert "taskkill /IM {#MyCmdExeName}" in iss
-    assert "[UninstallDelete]" in iss
-    assert 'Name: "{app}\\build"' in iss
-    assert "install\") / \"setup.exe\"" in build_script
-
-
 def test_refresh_policy_is_not_user_configurable() -> None:
     config_parameters = {row[0] for row in CONFIG_TABLE.rows}
     assert "refresh_on_file_open" not in config_parameters
@@ -88,49 +56,27 @@ def test_refresh_policy_is_not_user_configurable() -> None:
     assert "refresh_with_refresh_all" not in config_parameters
 
 
-def test_pyinstaller_uses_package_safe_entrypoints() -> None:
-    build_script = _read_text("scripts/build_windows_exe.py")
-    cli_entry = _read_text("scripts/pyinstaller_cli_entry.py")
-    gui_entry = _read_text("scripts/pyinstaller_gui_entry.py")
-
-    assert 'entrypoint="scripts/pyinstaller_cli_entry.py"' in build_script
-    assert 'entrypoint="scripts/pyinstaller_gui_entry.py"' in build_script
-    assert 'entrypoint="src/trino_excel_client/cli.py"' not in build_script
-    assert 'entrypoint="src/trino_excel_client/gui_app.py"' not in build_script
-    assert 'DEFAULT_ICON = Path("assets") / "app_icon.ico"' in build_script
-    assert 'f"--icon={args.icon}"' in build_script
-    assert "--add-data" in build_script
-    assert "os.pathsep" in build_script
-    assert "Icon file does not exist" in build_script
-    assert "from trino_excel_client.cli import main" in cli_entry
-    assert "from trino_excel_client.gui_app import main" in gui_entry
-
-
-def test_gui_sets_runtime_window_icon() -> None:
-    gui_app = _read_text("src/trino_excel_client/gui_app.py")
-
-    assert "SetCurrentProcessExplicitAppUserModelID" in gui_app
-    assert "_resource_path(\"assets/app_icon.ico\")" in gui_app
-    assert "self.iconbitmap(default=str(icon_path))" in gui_app
-
-
-def test_app_icon_asset_exists() -> None:
+def test_no_application_packaging_layer_remains() -> None:
     from pathlib import Path
 
-    icon_path = Path("assets") / "app_icon.ico"
-    icon_script = _read_text("scripts/build_app_icon.py")
+    removed_paths = [
+        ".github/workflows/build-windows-installer.yml",
+        "assets/app_icon.ico",
+        "install/setup.exe",
+        "installer/windows/trino-excel-client.iss",
+        "scripts/build_windows_exe.py",
+        "scripts/build_windows_installer.py",
+        "src/trino_excel_client/gui_app.py",
+    ]
 
-    assert icon_path.exists()
-    assert icon_path.stat().st_size > 1024
-    assert icon_path.read_bytes()[:4] == b"\x00\x00\x01\x00"
-    assert "--source" in icon_script
-    assert "assets/app_icon.ico" in icon_script
+    for path in removed_paths:
+        assert not Path(path).exists(), path
 
 
-def test_gui_defaults_save_workbooks_to_desktop() -> None:
-    gui_app = _read_text("src/trino_excel_client/gui_app.py")
+def test_template_build_script_targets_templates_directory() -> None:
+    script = _read_text("scripts/build_template.py")
+    readme = _read_text("README.md")
 
-    assert 'self.create_output = tk.StringVar(value=str(_desktop_path("Trino_REST_Client.xlsx")))' in gui_app
-    assert 'self.install_output = tk.StringVar(value=str(_desktop_path("Workbook_With_Trino.xlsx")))' in gui_app
-    assert 'Path("build") / "Trino_REST_Client.xlsx"' not in gui_app
-    assert 'Path("build") / "Workbook_With_Trino.xlsx"' not in gui_app
+    assert 'default=Path("templates") / "Trino_REST_Client.xlsx"' in script
+    assert "create_workbook_com" in script
+    assert "GitHub Actions для сборки шаблона намеренно не используется" in readme

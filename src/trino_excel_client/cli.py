@@ -101,15 +101,6 @@ def build_parser() -> argparse.ArgumentParser:
         "validate",
         help="Validate the cross-platform project contract without Excel.",
     )
-    gui_parser = subparsers.add_parser(
-        "gui",
-        help="Open the desktop GUI.",
-    )
-    gui_parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Show actions without creating or modifying workbooks.",
-    )
     return parser
 
 
@@ -164,12 +155,6 @@ def main() -> None:
                 print(f"ERROR: {error}")
             raise SystemExit(1)
         print("Project contract is valid.")
-        return
-
-    if args.command == "gui":
-        from .gui_app import run_app
-
-        run_app(dry_run=args.dry_run)
         return
 
     parser.error(f"Unknown command: {args.command}")

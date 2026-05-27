@@ -122,16 +122,6 @@ let
             TextValue = try Text.From(value) otherwise defaultValue
         in
             if Text.Trim(TextValue) = "" then defaultValue else TextValue,
-    ToLogical = (value as any, defaultValue as logical) as logical =>
-        let
-            TextValue = Text.Lower(Text.Trim(try Text.From(value) otherwise ""))
-        in
-            if List.Contains({"true", "1", "yes", "y", "да", "истина"}, TextValue) then
-                true
-            else if List.Contains({"false", "0", "no", "n", "нет", "ложь"}, TextValue) then
-                false
-            else
-                defaultValue,
     OptionalHeader = (headerName as text, headerValue as any) as record =>
         let
             TextValue = try Text.Trim(Text.From(headerValue)) otherwise ""
@@ -142,18 +132,15 @@ let
             Text.Start(trinoBaseUrl, Text.Length(trinoBaseUrl) - 1)
         else
             trinoBaseUrl,
-    SourceName = ToText(GetOption("SourceName", "Microsoft Excel PowerQuery client"), "Microsoft Excel PowerQuery client"),
+    SourceName = "Microsoft Excel PowerQuery client",
     TimeZoneName = ToText(GetOption("TimeZone", "Europe/Moscow"), "Europe/Moscow"),
     CatalogName = try GetOption("Catalog", "") otherwise "",
     SchemaName = try GetOption("Schema", "") otherwise "",
     RequestTimeoutMinutes = ToNumber(GetOption("RequestTimeoutMinutes", 5), 5),
-    PollingDelaySeconds = ToNumber(GetOption("PollingDelaySeconds", 0.2), 0.2),
-    MaxRetryCount = Number.RoundDown(ToNumber(GetOption("MaxRetryCount", 5), 5)),
-    RetryBaseDelaySeconds = ToNumber(GetOption("RetryBaseDelaySeconds", 0.5), 0.5),
-    DefaultQueryLimitRows = Number.RoundDown(ToNumber(GetOption("DefaultQueryLimitRows", 100000), 100000)),
-    ApplyDefaultQueryLimit = ToLogical(GetOption("ApplyDefaultQueryLimit", true), true),
-    MaxResultRows = Number.RoundDown(ToNumber(GetOption("MaxResultRows", 100000), 100000)),
-    ResultOverflowBehavior = Text.Lower(ToText(GetOption("ResultOverflowBehavior", "error"), "error")),
+    PollingDelaySeconds = 0.2,
+    MaxRetryCount = 5,
+    RetryBaseDelaySeconds = 0.5,
+    ResultLimitRows = Number.RoundDown(ToNumber(GetOption("ResultLimitRows", 1000000), 1000000)),
     NormalizeSqlForLimit = (query as text) as text =>
         let
             Trimmed = Text.Trim(query),
@@ -165,13 +152,13 @@ let
         in
             WithoutTrailingSemicolon,
     EffectiveSqlText =
-        if ApplyDefaultQueryLimit and DefaultQueryLimitRows > 0 then
+        if ResultLimitRows > 0 then
             "select * from ("
                 & "#(lf)"
                 & NormalizeSqlForLimit(sqlText)
                 & "#(lf)"
                 & ") as excel_trino_client_query limit "
-                & Text.From(DefaultQueryLimitRows)
+                & Text.From(ResultLimitRows)
         else
             sqlText,
     RequestTimeout = #duration(0, 0, RequestTimeoutMinutes, 0),
@@ -241,7 +228,19 @@ let
                     ManualStatusHandling = ManualStatuses
                 ]
             }),
-            RawResponse = Web.Contents(baseUrl, EffectiveOptions),
+            RawResponseAttempt = try Web.Contents(baseUrl, EffectiveOptions),
+            RawResponse =
+                if RawResponseAttempt[HasError] then
+                    error Error.Record(
+                        "Trino connection lost",
+                        "Потерялась связь с Trino во время выполнения или получения результата. Попробуйте обновить запрос еще раз. Если ошибка повторяется, уменьшите объем результата: добавьте LIMIT, фильтры, выберите меньше колонок или используйте агрегаты.",
+                        [
+                            reason = try RawResponseAttempt[Error][Message] otherwise "Power Query не получил ответ от Trino",
+                            result_limit_rows = ResultLimitRows
+                        ]
+                    )
+                else
+                    RawResponseAttempt[Value],
             Status = try Value.Metadata(RawResponse)[Response.Status] otherwise 200,
             BufferedBody = Binary.Buffer(RawResponse),
             ShouldRetry =
@@ -331,7 +330,7 @@ let
             0,
     FirstPage = PostStatement(),
     FirstRowCount = PageRowCount(FirstPage),
-    FirstOverflow = MaxResultRows > 0 and FirstRowCount > MaxResultRows,
+    FirstOverflow = ResultLimitRows > 0 and FirstRowCount > ResultLimitRows,
     GeneratedStates =
         List.Generate(
             () => [Page = FirstPage, RowCount = FirstRowCount, Overflow = FirstOverflow],
@@ -353,7 +352,7 @@ let
                             null,
                     NextRowCount = PageRowCount(NextPage),
                     TotalRowCount = CurrentRowCount + NextRowCount,
-                    NextOverflow = MaxResultRows > 0 and TotalRowCount > MaxResultRows
+                    NextOverflow = ResultLimitRows > 0 and TotalRowCount > ResultLimitRows
                 in
                     [Page = NextPage, RowCount = TotalRowCount, Overflow = NextOverflow],
             each _
@@ -417,27 +416,25 @@ let
             )
         ),
     Rows =
-        if MaxResultRows > 0 then
-            List.FirstN(AllRows, MaxResultRows)
+        if ResultLimitRows > 0 then
+            List.FirstN(AllRows, ResultLimitRows)
         else
             AllRows,
     OverflowMessage =
-        "Query returned more rows than max_result_rows="
-        & Text.From(MaxResultRows)
-        & ". Excel cannot safely load very large BigData result sets. "
-        & "Add LIMIT/aggregation/filtering, increase max_result_rows consciously, "
-        & "or set result_overflow_behavior=truncate to load only the first rows. "
+        "Trino returned more rows than result_limit_rows="
+        & Text.From(ResultLimitRows)
+        & ". Excel cannot safely load more than about one million rows. "
+        & "Reduce the result size with LIMIT, filters, fewer columns or aggregations, then refresh the query again. "
         & "Rows seen before stop: "
         & Text.From(TotalRowsSeen),
     Result =
-        if IsOverflow and ResultOverflowBehavior <> "truncate" then
+        if IsOverflow then
             error Error.Record(
                 "Trino result row limit exceeded",
                 OverflowMessage,
                 [
-                    max_result_rows = MaxResultRows,
-                    rows_seen_before_stop = TotalRowsSeen,
-                    result_overflow_behavior = ResultOverflowBehavior
+                    result_limit_rows = ResultLimitRows,
+                    rows_seen_before_stop = TotalRowsSeen
                 ]
             )
         else if List.Count(ColumnNames) > 0 then
@@ -485,18 +482,11 @@ let
                 qSqlText,
                 qExtraCredentials,
                 [
-                    SourceName = try Config[source_name] otherwise "Microsoft Excel PowerQuery client",
                     TimeZone = try Config[time_zone] otherwise "Europe/Moscow",
                     Catalog = try Config[trino_catalog] otherwise "",
                     Schema = try Config[trino_schema] otherwise "",
                     RequestTimeoutMinutes = try Config[request_timeout_minutes] otherwise 5,
-                    PollingDelaySeconds = try Config[polling_delay_seconds] otherwise 0.2,
-                    MaxRetryCount = try Config[max_retry_count] otherwise 5,
-                    RetryBaseDelaySeconds = try Config[retry_base_delay_seconds] otherwise 0.5,
-                    DefaultQueryLimitRows = try Config[default_query_limit_rows] otherwise 100000,
-                    ApplyDefaultQueryLimit = try Config[apply_default_query_limit] otherwise true,
-                    MaxResultRows = try Config[max_result_rows] otherwise 100000,
-                    ResultOverflowBehavior = try Config[result_overflow_behavior] otherwise "error"
+                    ResultLimitRows = try Config[result_limit_rows] otherwise 1000000
                 ]
             )
 in

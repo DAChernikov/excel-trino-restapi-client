@@ -9,4 +9,3 @@ __pycache__/
 ~$*.xlsm
 .idea/
 .DS_Store
-install/setup.exe
