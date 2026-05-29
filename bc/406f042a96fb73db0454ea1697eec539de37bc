@@ -1,0 +1,56 @@
+tests/test_cli.py
+  s_819cc380a7b08a::t_8e665390a7c362 11-18
+tests/test_excel_com.py
+  s_819cc380a7b08a::t_8a47ae78fcb8c4 31-32,89,128-204,234
+  s_819cc380a7b08a::t_92aa52d30fe252 406-429
+src/trino_excel_client/__init__.py
+  s_819cc380a7b08a::t_c8c4cb5f37b4ab 1-2,8-9,12-13
+src/trino_excel_client/m_code.py
+  s_819cc380a7b08a::t_f898c30c0b4a69 395-396
+src/trino_excel_client/advanced_vba.py
+  s_819cc380a7b08a::t_a2a767efa5e54e 1-248
+src/trino_excel_client/template.py
+  s_819cc380a7b08a::t_3bce61a7876b5c 69-77,89-90
+tests/test_openpyxl_backend.py
+  s_819cc380a7b08a::t_5f589bb7e8e309 5,60-73
+  s_819cc380a7b08a::t_84844de07d7318 29,32-33
+tests/test_contract.py
+  s_819cc380a7b08a::t_84844de07d7318 18-19,24
+  s_819cc380a7b08a::t_e01032838e154c 28-38
+README.md
+  s_819cc380a7b08a::t_1abcae6d2d651d 12,18-19
+  s_819cc380a7b08a::t_07cd3db84e0a95 29,35-41,62-73,142,171-191,212-225,261-270
+  s_819cc380a7b08a::t_d25ffd0706721e 80,89,164,194
+  s_819cc380a7b08a::t_6b4267dcc2d2c3 5
+  h_29db3271bff073 58-59
+src/trino_excel_client/openpyxl_backend.py
+  s_819cc380a7b08a::t_3ef7dce43b25c0 274-288
+  s_819cc380a7b08a::t_4125fc9684be53 308-328
+  s_819cc380a7b08a::t_ed05fb334fb06f 12,191-205,253-256
+src/trino_excel_client/excel_com.py
+  s_819cc380a7b08a::t_61d217b179b6de 8-13,434-435
+  s_819cc380a7b08a::t_ecd87c124357f0 6,16,222-287,294,309-312,358,365-367,374-375,385,402-417,427,429-433,445-462
+src/trino_excel_client/cli.py
+  s_819cc380a7b08a::t_e1ffe6d9d88615 62-66,104-108,123-124,131,133-136,148-149,157,159-162
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "bc406f042a96fb73db0454ea1697eec539de37bc",
+  "prompts": {},
+  "humans": {
+    "h_29db3271bff073": {
+      "author": "DAChernikov <129949710+DAChernikov@users.noreply.github.com>"
+    }
+  },
+  "sessions": {
+    "s_819cc380a7b08a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e4a8c-feec-7863-84d3-818764e87a13",
+        "model": "gpt-5.5"
+      },
+      "human_author": "DAChernikov <129949710+DAChernikov@users.noreply.github.com>"
+    }
+  }
+}
