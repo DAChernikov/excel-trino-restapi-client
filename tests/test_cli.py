@@ -8,6 +8,14 @@ def test_parser_accepts_create_openpyxl_backend() -> None:
     assert args.backend == "openpyxl"
 
 
+def test_parser_accepts_create_advanced_com_backend() -> None:
+    parser = build_parser()
+    args = parser.parse_args(["create", "--output", "client.xlsm", "--backend", "com", "--advanced"])
+    assert args.command == "create"
+    assert args.backend == "com"
+    assert args.advanced is True
+
+
 def test_parser_accepts_install_com_backend() -> None:
     parser = build_parser()
     args = parser.parse_args(["install", "--workbook", "book.xlsx", "--backend", "com"])

@@ -9,6 +9,7 @@ from openpyxl.worksheet.datavalidation import DataValidation
 from openpyxl.worksheet.table import Table, TableStyleInfo
 
 from .template import (
+    ADVANCED_TARGET_TABLE,
     CONFIG_TABLE,
     EXTRA_CREDENTIALS_TABLE,
     HELP_TABLE,
@@ -187,6 +188,21 @@ def _add_query_sheet(wb, sheet_prefix: str):
     return ws
 
 
+def _add_advanced_query_controls(wb, sheet_prefix: str) -> None:
+    ws = wb[client_sheet_names(sheet_prefix).query]
+    _section(ws, "A8", "Advanced выгрузка результата", 4)
+    _note(
+        ws,
+        "A9",
+        "Укажите лист результата и нажмите кнопку выгрузки. Если лист уже существует, таблица результата на нем будет обновлена.",
+        4,
+        "light_blue",
+    )
+    _add_table(ws, "A11", ADVANCED_TARGET_TABLE)
+    ws.column_dimensions["B"].width = 34
+    ws.column_dimensions["C"].width = 72
+
+
 def _add_result_sheet(wb, sheet_prefix: str):
     ws = wb.create_sheet(client_sheet_names(sheet_prefix).result)
     ws.sheet_properties.tabColor = COLORS["green"]
@@ -234,6 +250,12 @@ def install_client_ui(wb, sheet_prefix: str = "Trino") -> None:
     _add_help_sheet(wb, sheet_prefix)
 
 
+def install_advanced_client_ui(wb, sheet_prefix: str = "Trino") -> None:
+    install_client_ui(wb, sheet_prefix=sheet_prefix)
+    _delete_table_if_exists(wb, ADVANCED_TARGET_TABLE.name)
+    _add_advanced_query_controls(wb, sheet_prefix=sheet_prefix)
+
+
 def create_workbook_ui(output_path: Path, overwrite: bool = False, sheet_prefix: str = "Trino") -> Path:
     output_path = output_path.resolve()
     if output_path.exists() and not overwrite:
@@ -245,6 +267,21 @@ def create_workbook_ui(output_path: Path, overwrite: bool = False, sheet_prefix:
     wb = Workbook()
     del wb[wb.sheetnames[0]]
     install_client_ui(wb, sheet_prefix=sheet_prefix)
+    wb.save(output_path)
+    return output_path
+
+
+def create_advanced_workbook_ui(output_path: Path, overwrite: bool = False, sheet_prefix: str = "Trino") -> Path:
+    output_path = output_path.resolve()
+    if output_path.exists() and not overwrite:
+        raise FileExistsError(f"File already exists: {output_path}")
+    if output_path.suffix.lower() == ".xlsm":
+        raise ValueError("openpyxl backend can create .xlsx only. Use Windows COM backend for new .xlsm files.")
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    wb = Workbook()
+    del wb[wb.sheetnames[0]]
+    install_advanced_client_ui(wb, sheet_prefix=sheet_prefix)
     wb.save(output_path)
     return output_path
 
@@ -265,6 +302,27 @@ def install_client_ui_file(
     keep_vba = workbook_path.suffix.lower() == ".xlsm"
     wb = load_workbook(workbook_path, keep_vba=keep_vba)
     install_client_ui(wb, sheet_prefix=sheet_prefix)
+    final_path.parent.mkdir(parents=True, exist_ok=True)
+    wb.save(final_path)
+    return final_path
+
+
+def install_advanced_client_ui_file(
+    workbook_path: Path,
+    output_path: Path | None = None,
+    overwrite: bool = False,
+    sheet_prefix: str = "Trino",
+) -> Path:
+    workbook_path = workbook_path.resolve()
+    if not workbook_path.exists():
+        raise FileNotFoundError(f"Workbook does not exist: {workbook_path}")
+    final_path = output_path.resolve() if output_path else workbook_path
+    if output_path is not None and final_path.exists() and final_path != workbook_path and not overwrite:
+        raise FileExistsError(f"File already exists: {final_path}")
+
+    keep_vba = workbook_path.suffix.lower() == ".xlsm"
+    wb = load_workbook(workbook_path, keep_vba=keep_vba)
+    install_advanced_client_ui(wb, sheet_prefix=sheet_prefix)
     final_path.parent.mkdir(parents=True, exist_ok=True)
     wb.save(final_path)
     return final_path

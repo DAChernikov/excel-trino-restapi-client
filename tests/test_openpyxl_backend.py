@@ -2,7 +2,7 @@ from pathlib import Path
 
 from openpyxl import Workbook, load_workbook
 
-from trino_excel_client.openpyxl_backend import create_workbook_ui, install_client_ui_file
+from trino_excel_client.openpyxl_backend import create_advanced_workbook_ui, create_workbook_ui, install_client_ui_file
 from trino_excel_client.template import REQUIRED_TABLE_NAMES, client_sheet_names
 
 
@@ -26,18 +26,11 @@ def test_create_workbook_ui_creates_client_sheets_and_tables(tmp_path: Path) -> 
     assert workbook[names.config]["A1"].value == "Trino REST API Client - Config"
     assert workbook[names.config]["A5"].value == "Параметр"
     assert "однако не защищают" in workbook[names.config]["A2"].value
-    assert "extraCredentials параметров Trino" in workbook[names.config]["A24"].value
+    assert "extraCredentials параметров Trino" in workbook[names.config]["A17"].value
     assert workbook[names.config]["B7"].number_format != ";;;"
     assert workbook[names.config]["B8"].number_format == ";;;"
-    assert workbook[names.config]["B11"].value == "Microsoft Excel PowerQuery client"
-    assert workbook[names.config]["A17"].value == "default_query_limit_rows"
-    assert workbook[names.config]["B17"].value == "100000"
-    assert workbook[names.config]["A18"].value == "apply_default_query_limit"
-    assert workbook[names.config]["B18"].value == "TRUE"
-    assert workbook[names.config]["A19"].value == "max_result_rows"
-    assert workbook[names.config]["B19"].value == "100000"
-    assert workbook[names.config]["A20"].value == "result_overflow_behavior"
-    assert workbook[names.config]["B20"].value == "error"
+    assert workbook[names.config]["A13"].value == "result_limit_rows"
+    assert workbook[names.config]["B13"].value == "1000000"
     assert workbook[names.config]["D6"].value.startswith("URL координатора")
     assert workbook[names.query]["A4"].value == "SQL запрос"
     assert workbook[names.query]["A5"].value == "select * from your_catalog.your_schema.your_table limit 100"
@@ -64,3 +57,17 @@ def test_install_client_ui_preserves_existing_sheet(tmp_path: Path) -> None:
     assert installed["Existing"]["A1"].value == "keep me"
     assert set(client_sheet_names().all).issubset(installed.sheetnames)
     assert set(REQUIRED_TABLE_NAMES).issubset(_table_names(output))
+
+
+def test_create_advanced_workbook_ui_adds_target_sheet_table(tmp_path: Path) -> None:
+    output = tmp_path / "advanced-ui.xlsx"
+
+    create_advanced_workbook_ui(output, overwrite=False)
+
+    workbook = load_workbook(output)
+    names = client_sheet_names()
+    assert "tblTrinoAdvancedTarget" in _table_names(output)
+    assert workbook[names.query]["A8"].value == "Advanced выгрузка результата"
+    assert workbook[names.query]["A11"].value == "Параметр"
+    assert workbook[names.query]["A12"].value == "target_sheet"
+    assert workbook[names.query]["B12"].value == names.result

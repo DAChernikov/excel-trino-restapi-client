@@ -3,10 +3,17 @@ from __future__ import annotations
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
+from .advanced_vba import ADVANCED_VBA_CODE, ADVANCED_VBA_MODULE_NAME
 from .m_code import M_QUERIES
-from .openpyxl_backend import create_workbook_ui, install_client_ui_file
+from .openpyxl_backend import (
+    create_advanced_workbook_ui,
+    create_workbook_ui,
+    install_advanced_client_ui_file,
+    install_client_ui_file,
+)
 from .template import client_sheet_names
 
+MSO_SHAPE_ROUNDED_RECTANGLE = 5
 XL_SRC_EXTERNAL = 0
 XL_YES = 1
 XL_CMD_SQL = 2
@@ -212,12 +219,79 @@ def install_power_query_into_workbook(wb, sheet_prefix: str = "Trino") -> None:
         _enforce_manual_refresh_only(wb, result_connection=result_connection)
 
 
+def _delete_vba_module_if_exists(wb, module_name: str) -> None:
+    try:
+        components = wb.VBProject.VBComponents
+    except Exception as exc:
+        raise RuntimeError(
+            "Advanced .xlsm generation requires Excel VBA project access. "
+            "Enable 'Trust access to the VBA project object model' in Excel Trust Center."
+        ) from exc
+
+    try:
+        components.Remove(components(module_name))
+    except Exception:
+        pass
+
+
+def _install_advanced_vba_module(wb) -> None:
+    _delete_vba_module_if_exists(wb, ADVANCED_VBA_MODULE_NAME)
+    component = wb.VBProject.VBComponents.Add(1)
+    component.Name = ADVANCED_VBA_MODULE_NAME
+    component.CodeModule.AddFromString(ADVANCED_VBA_CODE.strip())
+
+
+def _delete_advanced_button_if_exists(query_ws) -> None:
+    try:
+        for idx in range(query_ws.Shapes.Count, 0, -1):
+            shape = query_ws.Shapes(idx)
+            try:
+                if shape.Name == "btnTrinoRunQueryToSheet":
+                    shape.Delete()
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+
+def _install_advanced_button(wb, sheet_prefix: str) -> None:
+    query_ws = wb.Worksheets(client_sheet_names(sheet_prefix).query)
+    _delete_advanced_button_if_exists(query_ws)
+
+    try:
+        anchor = query_ws.Range("A15")
+        button = query_ws.Shapes.AddShape(
+            MSO_SHAPE_ROUNDED_RECTANGLE,
+            anchor.Left,
+            anchor.Top,
+            220,
+            32,
+        )
+        button.Name = "btnTrinoRunQueryToSheet"
+        button.OnAction = "TrinoRunQueryToSheet"
+        button.TextFrame.Characters().Text = "Выгрузить в лист"
+    except Exception:
+        note = query_ws.Range("A15")
+        note.Value = "Макрос TrinoRunQueryToSheet добавлен. Запустите его через Alt+F8, если кнопка не создана."
+        try:
+            note.WrapText = True
+        except Exception:
+            pass
+
+
+def install_advanced_client_automation(wb, sheet_prefix: str = "Trino") -> None:
+    install_power_query_into_workbook(wb, sheet_prefix=sheet_prefix)
+    _install_advanced_vba_module(wb)
+    _install_advanced_button(wb, sheet_prefix=sheet_prefix)
+
+
 def _open_workbook_and_install_power_query(
     workbook_path: Path,
     *,
     visible: bool,
     sheet_prefix: str,
     save_as_path: Path | None = None,
+    advanced: bool = False,
 ) -> Path:
     pythoncom, win32 = _require_excel_modules()
     pythoncom.CoInitialize()
@@ -232,7 +306,10 @@ def _open_workbook_and_install_power_query(
         excel.DisplayAlerts = False
 
         wb = excel.Workbooks.Open(str(workbook_path.resolve()))
-        install_power_query_into_workbook(wb, sheet_prefix=sheet_prefix)
+        if advanced:
+            install_advanced_client_automation(wb, sheet_prefix=sheet_prefix)
+        else:
+            install_power_query_into_workbook(wb, sheet_prefix=sheet_prefix)
 
         if save_as_path is not None:
             final_path.parent.mkdir(parents=True, exist_ok=True)
@@ -278,11 +355,15 @@ def create_workbook(
     overwrite: bool = False,
     visible: bool = False,
     sheet_prefix: str = "Trino",
+    advanced: bool = False,
 ) -> Path:
     output_path = output_path.resolve()
 
     if output_path.exists() and not overwrite:
         raise FileExistsError(f"File already exists: {output_path}")
+
+    if advanced and output_path.suffix.lower() != ".xlsm":
+        raise ValueError("Advanced Trino client must be saved as .xlsm.")
 
     if output_path.suffix.lower() == ".xlsm":
         if output_path.exists():
@@ -290,7 +371,8 @@ def create_workbook(
 
         temp_path = _temporary_xlsx_path(output_path)
         try:
-            create_workbook_ui(
+            create_ui = create_advanced_workbook_ui if advanced else create_workbook_ui
+            create_ui(
                 output_path=temp_path,
                 overwrite=True,
                 sheet_prefix=sheet_prefix,
@@ -300,6 +382,7 @@ def create_workbook(
                 visible=visible,
                 sheet_prefix=sheet_prefix,
                 save_as_path=output_path,
+                advanced=advanced,
             )
         finally:
             try:
@@ -316,6 +399,22 @@ def create_workbook(
         output_path,
         visible=visible,
         sheet_prefix=sheet_prefix,
+        advanced=advanced,
+    )
+
+
+def create_advanced_workbook(
+    output_path: Path,
+    overwrite: bool = False,
+    visible: bool = False,
+    sheet_prefix: str = "Trino",
+) -> Path:
+    return create_workbook(
+        output_path=output_path,
+        overwrite=overwrite,
+        visible=visible,
+        sheet_prefix=sheet_prefix,
+        advanced=True,
     )
 
 
@@ -325,8 +424,15 @@ def install_client(
     overwrite: bool = False,
     visible: bool = False,
     sheet_prefix: str = "Trino",
+    advanced: bool = False,
 ) -> Path:
-    final_path = install_client_ui_file(
+    if advanced:
+        final_path_candidate = output_path if output_path is not None else workbook_path
+        if final_path_candidate.suffix.lower() != ".xlsm":
+            raise ValueError("Advanced Trino client must be installed into or saved as .xlsm.")
+
+    install_ui = install_advanced_client_ui_file if advanced else install_client_ui_file
+    final_path = install_ui(
         workbook_path=workbook_path,
         output_path=output_path,
         overwrite=overwrite,
@@ -336,4 +442,22 @@ def install_client(
         final_path,
         visible=visible,
         sheet_prefix=sheet_prefix,
+        advanced=advanced,
+    )
+
+
+def install_advanced_client(
+    workbook_path: Path,
+    output_path: Path | None = None,
+    overwrite: bool = False,
+    visible: bool = False,
+    sheet_prefix: str = "Trino",
+) -> Path:
+    return install_client(
+        workbook_path=workbook_path,
+        output_path=output_path,
+        overwrite=overwrite,
+        visible=visible,
+        sheet_prefix=sheet_prefix,
+        advanced=True,
     )

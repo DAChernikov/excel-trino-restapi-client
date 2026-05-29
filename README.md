@@ -2,19 +2,21 @@
 
 Python-библиотека для генерации Excel-шаблона с Power Query клиентом к Trino REST API.
 
-Проект больше не содержит отдельное приложение, установщик, GUI или GitHub Actions. Основной артефакт для пользователей - готовый Excel-файл в `templates/`, который разработчик собирает локально на Windows с установленным Microsoft Excel и коммитит в репозиторий.
+Основной артефакт для пользователей - готовый Excel-файл в `templates/`. Его можно собрать локально на Windows с установленным Microsoft Excel или через GitHub Actions на self-hosted Windows runner с desktop Excel.
 
 ## Оглавление
 
 - [Для пользователей](#для-пользователей)
   - [Что скачать](#что-скачать)
   - [Как работать в Excel](#как-работать-в-excel)
+  - [Advanced .xlsm шаблон](#advanced-xlsm-шаблон)
   - [Лимиты и BigData](#лимиты-и-bigdata)
   - [Безопасность](#безопасность)
 - [Для разработчиков](#для-разработчиков)
   - [Требования](#требования)
   - [Установка](#установка)
-  - [Сборка готового шаблона](#сборка-готового-шаблона)
+  - [Сборка стандартного .xlsx шаблона](#сборка-стандартного-xlsx-шаблона)
+  - [Сборка advanced .xlsm шаблона](#сборка-advanced-xlsm-шаблона)
   - [Python API](#python-api)
   - [Встраивание в существующую книгу](#встраивание-в-существующую-книгу)
   - [Проверки](#проверки)
@@ -24,13 +26,19 @@ Python-библиотека для генерации Excel-шаблона с Po
 
 ### Что скачать
 
-Скачайте готовый шаблон:
+Для обычной работы скачайте стандартный шаблон:
 
 ```text
 templates/Trino_REST_Client.xlsx
 ```
 
-Если файла нет или он устарел, попросите разработчика пересобрать шаблон на Windows через Excel COM и закоммитить новый `.xlsx` в `templates/`.
+Для продвинутой работы с выгрузкой разных SQL на разные листы используйте macro-enabled шаблон:
+
+```text
+templates/Trino_REST_Advanced_Client.xlsm
+```
+
+Если файла нет или он устарел, попросите разработчика пересобрать шаблон на Windows через Excel COM и закоммитить новый файл в `templates/`.
 
 ### Как работать в Excel
 
@@ -47,7 +55,21 @@ templates/Trino_REST_Client.xlsx
 
 При первом обращении Excel может спросить credentials/privacy level для Trino host. Обычно нужно выбрать `Anonymous`, потому что Basic Auth передается M-кодом через HTTP header.
 
+Также Excel может запрещать исполнять неподтвержденные HTTP запросы, из-за чего блокируется загрузка данных в Excel. Необходимо в таком случае перейти в "Данные" -> "Получить данные" -> "Параметры запроса". В открывшемся окне необходимо выбрать уровень настроек (Глобальный/только эта книга), перейти в "Конфиденциальность" и выбрать "Игнорировать все уровни конфиденциальности", таким образом вы разрешите Excel посылать HTTP запросы в Trino.
+
 Клиент настроен так, чтобы не отправлять запросы в Trino при открытии книги или при редактировании SQL. Запрос должен уходить только после пользовательского refresh-действия в Excel.
+
+### Advanced .xlsm шаблон
+
+`Trino_REST_Advanced_Client.xlsm` предназначен для пользователей, которым нужно выгружать несколько разных запросов в одну книгу.
+
+1. Откройте `.xlsm` и разрешите макросы, если Excel покажет предупреждение.
+2. Заполните `Trino Config`.
+3. На листе `Trino Query` введите SQL.
+4. В таблице advanced-параметров укажите `target_sheet` - название листа результата.
+5. Нажмите кнопку `Выгрузить в лист`.
+
+Если лист с таким названием уже есть, таблица результата на нем будет обновлена. Если листа нет, макрос создаст его и загрузит результат туда.
 
 ### Лимиты и BigData
 
@@ -55,10 +77,7 @@ Excel не подходит для прямой загрузки миллион�
 
 | Параметр | По умолчанию | Что делает |
 | --- | --- | --- |
-| `default_query_limit_rows` | `100000` | M-код добавляет внешний `LIMIT` вокруг SQL |
-| `apply_default_query_limit` | `TRUE` | Включает или отключает внешний `LIMIT` |
-| `max_result_rows` | `100000` | Жесткий лимит строк, разрешенных для загрузки в Excel |
-| `result_overflow_behavior` | `error` | `error` останавливает загрузку, `truncate` загружает первые строки |
+| `result_limit_rows` | `1000000` | M-код добавляет внешний `LIMIT` вокруг SQL и не дает загрузить в Excel больше этого количества строк |
 
 По умолчанию SQL отправляется в Trino так:
 
@@ -67,7 +86,7 @@ select *
 from (
     <ваш SQL>
 ) as excel_trino_client_query
-limit 100000
+limit 1000000
 ```
 
 Рекомендации:
@@ -120,7 +139,7 @@ pip install -e ".[test]"
 trino-excel-client --help
 ```
 
-### Сборка готового шаблона
+### Сборка стандартного .xlsx шаблона
 
 На Windows с установленным Excel:
 
@@ -142,14 +161,37 @@ trino-excel-client create --backend com --output templates\Trino_REST_Client.xls
 4. создает таблицу результата на листе `Trino Result`;
 5. сохраняет готовый шаблон.
 
-После ручной проверки шаблон нужно закоммитить:
+После ручной проверки шаблон можно закоммитить:
 
 ```bat
 git add templates\Trino_REST_Client.xlsx
 git commit -m "Update Trino Excel template"
 ```
 
-GitHub Actions для сборки шаблона намеренно не используется: полноценное COM-встраивание Power Query требует desktop Microsoft Excel, поэтому актуальный шаблон собирается разработчиком локально на Windows.
+### Сборка advanced .xlsm шаблона
+
+На Windows с установленным Excel:
+
+```bat
+trino-excel-client create --backend com --advanced --output templates\Trino_REST_Advanced_Client.xlsm --overwrite --visible
+```
+
+Без видимого Excel:
+
+```bat
+trino-excel-client create --backend com --advanced --output templates\Trino_REST_Advanced_Client.xlsm --overwrite
+```
+
+Для сборки advanced-шаблона Excel должен разрешать доступ к VBA project object model: `File -> Options -> Trust Center -> Trust Center Settings -> Macro Settings -> Trust access to the VBA project object model`.
+
+После ручной проверки шаблон можно закоммитить:
+
+```bat
+git add templates\Trino_REST_Advanced_Client.xlsm
+git commit -m "Update advanced Trino Excel template"
+```
+
+Для автоматической сборки полноценного шаблона нужен self-hosted Windows runner с установленным desktop Microsoft Excel. На обычном GitHub-hosted runner можно собрать только UI-only preview, потому что Power Query COM-встраивание требует установленный Excel.
 
 ### Python API
 
@@ -162,6 +204,20 @@ from trino_excel_client import create_workbook
 
 create_workbook(
     output_path=Path("templates/Trino_REST_Client.xlsx"),
+    overwrite=True,
+    visible=False,
+)
+```
+
+Собрать advanced `.xlsm` через Windows Excel COM:
+
+```python
+from pathlib import Path
+
+from trino_excel_client import create_advanced_workbook
+
+create_advanced_workbook(
+    output_path=Path("templates/Trino_REST_Advanced_Client.xlsm"),
     overwrite=True,
     visible=False,
 )
@@ -198,6 +254,20 @@ from trino_excel_client import install_client
 install_client(
     workbook_path=Path("reports/Workbook.xlsx"),
     output_path=Path("build/Workbook_With_Trino.xlsx"),
+    overwrite=True,
+)
+```
+
+Advanced-вариант:
+
+```python
+from pathlib import Path
+
+from trino_excel_client import install_advanced_client
+
+install_advanced_client(
+    workbook_path=Path("reports/Workbook.xlsm"),
+    output_path=Path("build/Workbook_With_Advanced_Trino.xlsm"),
     overwrite=True,
 )
 ```

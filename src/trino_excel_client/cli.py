@@ -59,6 +59,11 @@ def build_parser() -> argparse.ArgumentParser:
         default="Trino",
         help='Prefix for client sheets. Default: "Trino".',
     )
+    create_parser.add_argument(
+        "--advanced",
+        action="store_true",
+        help="Create an advanced .xlsm client with a VBA button for exporting the current SQL to a named result sheet. COM backend only.",
+    )
 
     install_parser = subparsers.add_parser(
         "install",
@@ -96,6 +101,11 @@ def build_parser() -> argparse.ArgumentParser:
         default="Trino",
         help='Prefix for client sheets. Default: "Trino".',
     )
+    install_parser.add_argument(
+        "--advanced",
+        action="store_true",
+        help="Install the advanced .xlsm client with a VBA button for exporting the current SQL to a named result sheet. COM backend only.",
+    )
 
     subparsers.add_parser(
         "validate",
@@ -110,14 +120,20 @@ def main() -> None:
 
     if args.command == "create":
         backend = _effective_backend(args.backend)
+        if args.advanced and backend != "com":
+            parser.error("--advanced requires --backend com and Windows desktop Excel")
         if backend == "com":
             output_path = create_workbook_com(
                 output_path=args.output,
                 overwrite=args.overwrite,
                 visible=args.visible,
                 sheet_prefix=args.sheet_prefix,
+                advanced=args.advanced,
             )
-            print(f"Created workbook with Excel COM and Power Query: {output_path}")
+            if args.advanced:
+                print(f"Created advanced macro-enabled workbook with Excel COM, Power Query, and VBA: {output_path}")
+            else:
+                print(f"Created workbook with Excel COM and Power Query: {output_path}")
         else:
             output_path = create_workbook_ui(
                 output_path=args.output,
@@ -129,6 +145,8 @@ def main() -> None:
 
     if args.command == "install":
         backend = _effective_backend(args.backend)
+        if args.advanced and backend != "com":
+            parser.error("--advanced requires --backend com and Windows desktop Excel")
         if backend == "com":
             output_path = install_client_com(
                 workbook_path=args.workbook,
@@ -136,8 +154,12 @@ def main() -> None:
                 overwrite=args.overwrite,
                 visible=args.visible,
                 sheet_prefix=args.sheet_prefix,
+                advanced=args.advanced,
             )
-            print(f"Installed Trino client with Excel COM and Power Query: {output_path}")
+            if args.advanced:
+                print(f"Installed advanced Trino client with Excel COM, Power Query, and VBA: {output_path}")
+            else:
+                print(f"Installed Trino client with Excel COM and Power Query: {output_path}")
         else:
             output_path = install_client_ui_file(
                 workbook_path=args.workbook,

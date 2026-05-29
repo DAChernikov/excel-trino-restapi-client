@@ -388,12 +388,12 @@ let
                     type logical
                 else if BaseType = "date" then
                     type date
-                else if Text.StartsWith(NormalizedType, "time") then
-                    type time
                 else if Text.StartsWith(NormalizedType, "timestamp") and Text.Contains(NormalizedType, "with time zone") then
                     type datetimezone
                 else if Text.StartsWith(NormalizedType, "timestamp") then
                     type datetime
+                else if Text.StartsWith(NormalizedType, "time") then
+                    type time
                 else if List.Contains({"varchar", "char", "json", "uuid", "ipaddress"}, BaseType) then
                     type text
                 else

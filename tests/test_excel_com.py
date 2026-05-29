@@ -28,6 +28,8 @@ class FakeRange:
         self.Value = None
         self.WrapText = None
         self.cleared = False
+        self.Left = 10
+        self.Top = 10
         self.Interior = type("Interior", (), {"Color": None})()
 
     def Clear(self) -> None:
@@ -84,6 +86,7 @@ class FakeWorksheet:
     def __init__(self, name: str, result_connection=None) -> None:
         self.name = name
         self.ListObjects = FakeListObjects(result_connection)
+        self.Shapes = FakeShapes()
         self.ranges: dict[str, FakeRange] = {}
 
     def Range(self, address: str) -> FakeRange:
@@ -122,6 +125,83 @@ class FakeQueries:
         )
 
 
+class FakeCodeModule:
+    def __init__(self) -> None:
+        self.code = ""
+
+    def AddFromString(self, code: str) -> None:
+        self.code = code
+
+
+class FakeVBComponent:
+    def __init__(self) -> None:
+        self.Name = ""
+        self.CodeModule = FakeCodeModule()
+
+
+class FakeVBComponents:
+    def __init__(self) -> None:
+        self.components: dict[str, FakeVBComponent] = {}
+        self.added: list[FakeVBComponent] = []
+        self.removed: list[FakeVBComponent] = []
+
+    def __call__(self, name: str) -> FakeVBComponent:
+        return self.components[name]
+
+    def Add(self, component_type: int) -> FakeVBComponent:
+        assert component_type == 1
+        component = FakeVBComponent()
+        self.added.append(component)
+        return component
+
+    def Remove(self, component: FakeVBComponent) -> None:
+        self.removed.append(component)
+
+
+class FakeVBProject:
+    def __init__(self) -> None:
+        self.VBComponents = FakeVBComponents()
+
+
+class FakeShapeTextCharacters:
+    def __init__(self) -> None:
+        self.Text = ""
+
+
+class FakeShapeTextFrame:
+    def __init__(self) -> None:
+        self.characters = FakeShapeTextCharacters()
+
+    def Characters(self) -> FakeShapeTextCharacters:
+        return self.characters
+
+
+class FakeShape:
+    def __init__(self) -> None:
+        self.Name = None
+        self.OnAction = None
+        self.TextFrame = FakeShapeTextFrame()
+        self.deleted = False
+
+    def Delete(self) -> None:
+        self.deleted = True
+
+
+class FakeShapes:
+    def __init__(self) -> None:
+        self.items: list[FakeShape] = []
+        self.Count = 0
+
+    def __call__(self, index: int) -> FakeShape:
+        return self.items[index - 1]
+
+    def AddShape(self, shape_type, left, top, width, height) -> FakeShape:
+        shape = FakeShape()
+        self.items.append(shape)
+        self.Count = len(self.items)
+        return shape
+
+
 class FakeConnectionChild:
     def __init__(self) -> None:
         self.BackgroundQuery = None
@@ -151,6 +231,7 @@ class FakeWorkbook:
     def __init__(self, path: Path) -> None:
         self.path = path
         self.Queries = FakeQueries()
+        self.VBProject = FakeVBProject()
         self.helper_connection = FakeConnection("Query - qConfig")
         self.result_connection = FakeConnection("Query - TrinoResult")
         self.Connections = FakeConnections([self.helper_connection, self.result_connection])
@@ -322,3 +403,27 @@ def test_com_create_keeps_workbook_when_result_table_creation_fails(tmp_path: Pa
     assert output.exists()
     assert env.result_sheet.ranges["A5"].Value.startswith("Power Query-запросы добавлены")
     assert [query["Name"] for query in env.workbook.Queries.added] == list(M_QUERIES)
+
+
+def test_com_create_advanced_xlsm_installs_vba_and_button(tmp_path: Path, monkeypatch) -> None:
+    env = _install_fake_com(monkeypatch)
+    output = tmp_path / "advanced.xlsm"
+
+    result = excel_com.create_workbook(output, overwrite=False, visible=False, advanced=True)
+
+    assert result == output.resolve()
+    assert env.workbook.save_as_calls[0]["FileFormat"] == excel_com.XL_OPENXML_WORKBOOK_MACRO_ENABLED
+    assert env.workbook.VBProject.VBComponents.added
+    component = env.workbook.VBProject.VBComponents.added[0]
+    assert component.Name == "TrinoAdvancedClient"
+    assert "TrinoRunQueryToSheet" in component.CodeModule.code
+    assert "tblTrinoAdvancedTarget" in component.CodeModule.code
+
+    button = env.query_sheet.Shapes.items[0]
+    assert button.Name == "btnTrinoRunQueryToSheet"
+    assert button.OnAction == "TrinoRunQueryToSheet"
+    assert button.TextFrame.Characters().Text == "Выгрузить в лист"
+
+    workbook = load_workbook(output, keep_vba=True)
+    assert "tblTrinoAdvancedTarget" in _table_names(output)
+    assert workbook["Trino Query"]["A12"].value == "target_sheet"
