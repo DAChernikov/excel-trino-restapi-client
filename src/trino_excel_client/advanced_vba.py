@@ -144,32 +144,35 @@ Private Sub UpsertResultQuery(ByVal queryName As String, ByVal sqlText As String
 End Sub
 
 Private Function BuildResultFormula(ByVal sqlText As String) As String
-    BuildResultFormula = _
-        "let" & vbCrLf & _
-        "    Config = qConfig," & vbCrLf & _
-        "    SqlText = " & MTextLiteral(sqlText) & "," & vbCrLf & _
-        "    RequiredFields = {""trino_base_url"", ""trino_user"", ""trino_password""}," & vbCrLf & _
-        "    MissingFields = List.Select(RequiredFields, each not Record.HasFields(Config, _) or Text.Trim(Text.From(Record.Field(Config, _))) = """")," & vbCrLf & _
-        "    Result =" & vbCrLf & _
-        "        if List.Count(MissingFields) > 0 then" & vbCrLf & _
-        "            error Error.Record(""Trino configuration error"", ""Fill required Config parameters: "" & Text.Combine(MissingFields, "", ""), MissingFields)" & vbCrLf & _
-        "        else" & vbCrLf & _
-        "            fnTrinoRestQuery(" & vbCrLf & _
-        "                Config[trino_base_url]," & vbCrLf & _
-        "                Config[trino_user]," & vbCrLf & _
-        "                Config[trino_password]," & vbCrLf & _
-        "                SqlText," & vbCrLf & _
-        "                qExtraCredentials," & vbCrLf & _
-        "                [" & vbCrLf & _
-        "                    TimeZone = try Config[time_zone] otherwise ""Europe/Moscow""," & vbCrLf & _
-        "                    Catalog = try Config[trino_catalog] otherwise """"," & vbCrLf & _
-        "                    Schema = try Config[trino_schema] otherwise """"," & vbCrLf & _
-        "                    RequestTimeoutMinutes = try Config[request_timeout_minutes] otherwise 5," & vbCrLf & _
-        "                    ResultLimitRows = try Config[result_limit_rows] otherwise 1000000" & vbCrLf & _
-        "                ]" & vbCrLf & _
-        "            )" & vbCrLf & _
-        "in" & vbCrLf & _
-        "    Result"
+    Dim formula As String
+
+    formula = "let" & vbCrLf
+    formula = formula & "    Config = qConfig," & vbCrLf
+    formula = formula & "    SqlText = " & MTextLiteral(sqlText) & "," & vbCrLf
+    formula = formula & "    RequiredFields = {""trino_base_url"", ""trino_user"", ""trino_password""}," & vbCrLf
+    formula = formula & "    MissingFields = List.Select(RequiredFields, each not Record.HasFields(Config, _) or Text.Trim(Text.From(Record.Field(Config, _))) = """")," & vbCrLf
+    formula = formula & "    Result =" & vbCrLf
+    formula = formula & "        if List.Count(MissingFields) > 0 then" & vbCrLf
+    formula = formula & "            error Error.Record(""Trino configuration error"", ""Fill required Config parameters: "" & Text.Combine(MissingFields, "", ""), MissingFields)" & vbCrLf
+    formula = formula & "        else" & vbCrLf
+    formula = formula & "            fnTrinoRestQuery(" & vbCrLf
+    formula = formula & "                Config[trino_base_url]," & vbCrLf
+    formula = formula & "                Config[trino_user]," & vbCrLf
+    formula = formula & "                Config[trino_password]," & vbCrLf
+    formula = formula & "                SqlText," & vbCrLf
+    formula = formula & "                qExtraCredentials," & vbCrLf
+    formula = formula & "                [" & vbCrLf
+    formula = formula & "                    TimeZone = try Config[time_zone] otherwise ""Europe/Moscow""," & vbCrLf
+    formula = formula & "                    Catalog = try Config[trino_catalog] otherwise """"," & vbCrLf
+    formula = formula & "                    Schema = try Config[trino_schema] otherwise """"," & vbCrLf
+    formula = formula & "                    RequestTimeoutMinutes = try Config[request_timeout_minutes] otherwise 5," & vbCrLf
+    formula = formula & "                    ResultLimitRows = try Config[result_limit_rows] otherwise 1000000" & vbCrLf
+    formula = formula & "                ]" & vbCrLf
+    formula = formula & "            )" & vbCrLf
+    formula = formula & "in" & vbCrLf
+    formula = formula & "    Result"
+
+    BuildResultFormula = formula
 End Function
 
 Private Function MTextLiteral(ByVal value As String) As String

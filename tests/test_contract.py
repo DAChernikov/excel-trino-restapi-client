@@ -25,14 +25,30 @@ def test_m_code_contains_bigdata_row_limit_controls() -> None:
     assert "TrinoResultSchema" not in M_QUERIES
 
 
-def test_m_code_maps_timestamp_before_time() -> None:
+def test_m_code_parses_timestamp_as_datetime_before_time() -> None:
     function_formula = M_QUERIES["fnTrinoRestQuery"]
     timestamp_position = function_formula.index('Text.StartsWith(NormalizedType, "timestamp")')
     time_position = function_formula.index('Text.StartsWith(NormalizedType, "time")')
 
     assert timestamp_position < time_position
+    assert "ParseTrinoTimestamp" in function_formula
+    assert "ParseTrinoTimestampZone" in function_formula
     assert "type datetimezone" in function_formula
     assert "type datetime" in function_formula
+
+
+def test_m_code_parses_all_trino_temporal_types_explicitly() -> None:
+    function_formula = M_QUERIES["fnTrinoRestQuery"]
+
+    assert "ParseTrinoDate" in function_formula
+    assert "ParseTrinoTimestamp" in function_formula
+    assert "ParseTrinoTimestampZone" in function_formula
+    assert "ParseTrinoTime" in function_formula
+    assert "DateColumnTransforms" in function_formula
+    assert "TimestampColumnTransforms" in function_formula
+    assert "TimestampZoneColumnTransforms" in function_formula
+    assert "TimeColumnTransforms" in function_formula
+    assert "type date" in function_formula
     assert "type time" in function_formula
 
 
