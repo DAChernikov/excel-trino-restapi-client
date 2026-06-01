@@ -11,7 +11,6 @@ from .openpyxl_backend import (
     install_advanced_client_ui_file,
     install_client_ui_file,
 )
-from .ooxml import patch_standard_temporal_formats
 from .template import client_sheet_names
 
 MSO_SHAPE_ROUNDED_RECTANGLE = 5
@@ -486,8 +485,6 @@ def _open_workbook_and_install_power_query(
 
         wb.Close(SaveChanges=True)
         wb = None
-        if not advanced and final_path.suffix.lower() == ".xlsx":
-            patch_standard_temporal_formats(final_path, sheet_prefix=sheet_prefix)
         return final_path
 
     finally:
