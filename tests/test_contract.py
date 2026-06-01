@@ -1,3 +1,4 @@
+from trino_excel_client.advanced_vba import ADVANCED_VBA_CODE
 from trino_excel_client.m_code import M_QUERIES
 from trino_excel_client.template import CONFIG_TABLE, REQUIRED_QUERY_NAMES, client_sheet_names
 from trino_excel_client.validation import validate_project_contract
@@ -69,3 +70,24 @@ def test_refresh_policy_is_not_user_configurable() -> None:
     assert "refresh_period" not in config_parameters
     assert "background_query" not in config_parameters
     assert "refresh_with_refresh_all" not in config_parameters
+
+
+def test_advanced_vba_blocks_are_balanced_and_avoid_line_continuations() -> None:
+    stack: list[tuple[str, int, str]] = []
+
+    for line_number, line in enumerate(ADVANCED_VBA_CODE.splitlines(), 1):
+        stripped = line.strip().lower()
+        if stripped.startswith(("public sub ", "private sub ")):
+            stack.append(("sub", line_number, line.strip()))
+        elif stripped.startswith(("public function ", "private function ")):
+            stack.append(("function", line_number, line.strip()))
+        elif stripped == "end sub":
+            assert stack and stack[-1][0] == "sub", (line_number, stack[-1] if stack else None)
+            stack.pop()
+        elif stripped == "end function":
+            assert stack and stack[-1][0] == "function", (line_number, stack[-1] if stack else None)
+            stack.pop()
+
+        assert not line.rstrip().endswith("_"), line_number
+
+    assert stack == []

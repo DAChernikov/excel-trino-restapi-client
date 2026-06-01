@@ -420,14 +420,18 @@ def test_com_create_advanced_xlsm_installs_vba_and_button(tmp_path: Path, monkey
     assert component.Name == "TrinoAdvancedClient"
     assert "TrinoRunQueryToSheet" in component.CodeModule.code
     assert "tblTrinoAdvancedTarget" in component.CodeModule.code
+    assert "PrepareResultWorksheet resultWs\n    UpsertResultQuery queryName, sqlText" in component.CodeModule.code
     assert "PrepareResultWorksheet resultWs" in component.CodeModule.code
     assert "IsManagedResultTableName" in component.CodeModule.code
+    assert "Private Function IsManagedResultTableName" in component.CodeModule.code
+    assert "IsManagedResultTableName = (Left$(tableName, Len(\"tblTrinoResult\")) = \"tblTrinoResult\")\nEnd Function" in component.CodeModule.code
     assert "BuildResultFormula = _" not in component.CodeModule.code
 
     button = env.query_sheet.Shapes.items[0]
     assert button.Name == "btnTrinoRunQueryToSheet"
     assert button.OnAction == "'advanced.xlsm'!TrinoAdvancedClient.TrinoRunQueryToSheet"
     assert button.TextFrame.Characters().Text == "Выгрузить в лист"
+    assert env.result_sheet.ListObjects.add_calls == []
 
     workbook = load_workbook(output, keep_vba=True)
     assert "tblTrinoAdvancedTarget" in _table_names(output)

@@ -34,8 +34,8 @@ Public Sub TrinoRunQueryToSheet()
     tableName = "tblTrinoResult_" & StableToken(targetSheetName)
 
     Set resultWs = EnsureWorksheet(targetSheetName)
-    UpsertResultQuery queryName, sqlText
     PrepareResultWorksheet resultWs
+    UpsertResultQuery queryName, sqlText
     Set resultTable = CreateResultTable(resultWs, queryName, tableName)
 
     resultTable.QueryTable.Refresh BackgroundQuery:=False
@@ -204,7 +204,7 @@ End Sub
 
 Private Function IsManagedResultTableName(ByVal tableName As String) As Boolean
     IsManagedResultTableName = (Left$(tableName, Len("tblTrinoResult")) = "tblTrinoResult")
-End Sub
+End Function
 
 Private Function CreateResultTable(ByVal resultWs As Worksheet, ByVal queryName As String, ByVal tableName As String) As ListObject
     Dim connectionString As String

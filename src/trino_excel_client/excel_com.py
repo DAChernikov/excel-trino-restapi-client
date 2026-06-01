@@ -286,7 +286,8 @@ def install_advanced_client_automation(
     sheet_prefix: str = "Trino",
     macro_workbook_name: str | None = None,
 ) -> None:
-    install_power_query_into_workbook(wb, sheet_prefix=sheet_prefix)
+    _add_power_queries(wb)
+    _enforce_manual_refresh_only(wb)
     _install_advanced_vba_module(wb)
     _install_advanced_button(wb, sheet_prefix=sheet_prefix, macro_workbook_name=macro_workbook_name)
 
