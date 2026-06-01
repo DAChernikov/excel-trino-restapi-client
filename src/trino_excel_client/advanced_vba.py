@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from .m_code import M_QUERIES
+
 ADVANCED_VBA_MODULE_NAME = "TrinoAdvancedClient"
 
 ADVANCED_VBA_CODE = r'''
@@ -7,6 +9,8 @@ Option Explicit
 
 Private Const TARGET_TABLE_NAME As String = "tblTrinoAdvancedTarget"
 Private Const SQL_TABLE_NAME As String = "tblTrinoSql"
+Private Const CONFIG_TABLE_NAME As String = "tblTrinoConfig"
+Private Const EXTRA_CREDENTIALS_TABLE_NAME As String = "tblExtraCredentials"
 
 Public Sub TrinoRunQueryToSheet()
     On Error GoTo Fail
@@ -48,6 +52,7 @@ End Sub
 
 Private Function BuildFriendlyErrorMessage(ByVal details As String) As String
     Dim message As String
+    Dim hasFirewallError As Boolean
 
     message = "Не удалось выполнить выгрузку Trino." & vbCrLf & details
 
@@ -58,24 +63,40 @@ Private Function BuildFriendlyErrorMessage(ByVal details As String) As String
         message = message & "Очистите старые разрешения для Trino host и при следующем запросе выберите Anonymous."
     End If
 
+    hasFirewallError = InStr(1, details, "Formula.Firewall", vbTextCompare) > 0
+    hasFirewallError = hasFirewallError Or InStr(1, details, "ссылается на другие запросы", vbTextCompare) > 0
+    If hasFirewallError Then
+        message = message & vbCrLf & vbCrLf
+        message = message & "Excel применил Power Query Privacy Firewall на этом ПК." & vbCrLf
+        message = message & "Пересоберите advanced-шаблон актуальной версией клиента. В актуальной версии параметры подключения встраиваются в запрос как значения, чтобы не смешивать Excel-таблицы и Web.Contents в одном Power Query partition."
+    End If
+
     BuildFriendlyErrorMessage = message
 End Function
 
 Private Function ReadAdvancedValue(ByVal key As String) As String
+    ReadAdvancedValue = ReadKeyValue(TARGET_TABLE_NAME, key)
+End Function
+
+Private Function ReadConfigValue(ByVal key As String) As String
+    ReadConfigValue = ReadKeyValue(CONFIG_TABLE_NAME, key)
+End Function
+
+Private Function ReadKeyValue(ByVal tableName As String, ByVal key As String) As String
     Dim lo As ListObject
     Dim row As ListRow
     Dim currentKey As String
 
-    Set lo = FindListObject(TARGET_TABLE_NAME)
+    Set lo = FindListObject(tableName)
     For Each row In lo.ListRows
         currentKey = LCase(Trim(CStr(row.Range.Cells(1, 1).Value)))
         If currentKey = LCase(key) Then
-            ReadAdvancedValue = CStr(row.Range.Cells(1, 2).Value)
+            ReadKeyValue = CStr(row.Range.Cells(1, 2).Value)
             Exit Function
         End If
     Next row
 
-    ReadAdvancedValue = ""
+    ReadKeyValue = ""
 End Function
 
 Private Function ReadSqlText() As String
@@ -160,34 +181,112 @@ End Sub
 
 Private Function BuildResultFormula(ByVal sqlText As String) As String
     Dim formula As String
+    Dim baseUrl As String
+    Dim trinoUser As String
+    Dim trinoPassword As String
+    Dim timeZoneName As String
+    Dim catalogName As String
+    Dim schemaName As String
+    Dim requestTimeoutMinutes As String
+    Dim resultLimitRows As String
+
+    baseUrl = RequireConfigValue("trino_base_url")
+    trinoUser = RequireConfigValue("trino_user")
+    trinoPassword = RequireConfigValue("trino_password")
+    timeZoneName = ConfigValueOrDefault("time_zone", "Europe/Moscow")
+    catalogName = ReadConfigValue("trino_catalog")
+    schemaName = ReadConfigValue("trino_schema")
+    requestTimeoutMinutes = ConfigValueOrDefault("request_timeout_minutes", "5")
+    resultLimitRows = ConfigValueOrDefault("result_limit_rows", "1000000")
 
     formula = "let" & vbCrLf
-    formula = formula & "    Config = qConfig," & vbCrLf
+    formula = formula & "    TrinoRestQuery = " & TrinoRestFunctionFormula() & "," & vbCrLf
     formula = formula & "    SqlText = " & MTextLiteral(sqlText) & "," & vbCrLf
-    formula = formula & "    RequiredFields = {""trino_base_url"", ""trino_user"", ""trino_password""}," & vbCrLf
-    formula = formula & "    MissingFields = List.Select(RequiredFields, each not Record.HasFields(Config, _) or Text.Trim(Text.From(Record.Field(Config, _))) = """")," & vbCrLf
-    formula = formula & "    Result =" & vbCrLf
-    formula = formula & "        if List.Count(MissingFields) > 0 then" & vbCrLf
-    formula = formula & "            error Error.Record(""Trino configuration error"", ""Fill required Config parameters: "" & Text.Combine(MissingFields, "", ""), MissingFields)" & vbCrLf
-    formula = formula & "        else" & vbCrLf
-    formula = formula & "            fnTrinoRestQuery(" & vbCrLf
-    formula = formula & "                Config[trino_base_url]," & vbCrLf
-    formula = formula & "                Config[trino_user]," & vbCrLf
-    formula = formula & "                Config[trino_password]," & vbCrLf
-    formula = formula & "                SqlText," & vbCrLf
-    formula = formula & "                qExtraCredentials," & vbCrLf
-    formula = formula & "                [" & vbCrLf
-    formula = formula & "                    TimeZone = try Config[time_zone] otherwise ""Europe/Moscow""," & vbCrLf
-    formula = formula & "                    Catalog = try Config[trino_catalog] otherwise """"," & vbCrLf
-    formula = formula & "                    Schema = try Config[trino_schema] otherwise """"," & vbCrLf
-    formula = formula & "                    RequestTimeoutMinutes = try Config[request_timeout_minutes] otherwise 5," & vbCrLf
-    formula = formula & "                    ResultLimitRows = try Config[result_limit_rows] otherwise 1000000" & vbCrLf
-    formula = formula & "                ]" & vbCrLf
-    formula = formula & "            )" & vbCrLf
+    formula = formula & "    ExtraCredentials = " & BuildExtraCredentialsTableLiteral() & "," & vbCrLf
+    formula = formula & "    Result = TrinoRestQuery(" & vbCrLf
+    formula = formula & "        " & MTextLiteral(baseUrl) & "," & vbCrLf
+    formula = formula & "        " & MTextLiteral(trinoUser) & "," & vbCrLf
+    formula = formula & "        " & MTextLiteral(trinoPassword) & "," & vbCrLf
+    formula = formula & "        SqlText," & vbCrLf
+    formula = formula & "        ExtraCredentials," & vbCrLf
+    formula = formula & "        [" & vbCrLf
+    formula = formula & "            TimeZone = " & MTextLiteral(timeZoneName) & "," & vbCrLf
+    formula = formula & "            Catalog = " & MTextLiteral(catalogName) & "," & vbCrLf
+    formula = formula & "            Schema = " & MTextLiteral(schemaName) & "," & vbCrLf
+    formula = formula & "            RequestTimeoutMinutes = " & MTextLiteral(requestTimeoutMinutes) & "," & vbCrLf
+    formula = formula & "            ResultLimitRows = " & MTextLiteral(resultLimitRows) & vbCrLf
+    formula = formula & "        ]" & vbCrLf
+    formula = formula & "    )" & vbCrLf
     formula = formula & "in" & vbCrLf
     formula = formula & "    Result"
 
     BuildResultFormula = formula
+End Function
+
+Private Function RequireConfigValue(ByVal key As String) As String
+    Dim value As String
+
+    value = Trim(ReadConfigValue(key))
+    If value = "" Or UCase(value) = "CHANGE_ME" Then
+        Err.Raise vbObjectError + 5105, "RequireConfigValue", "Заполните обязательный параметр Config: " & key & "."
+    End If
+
+    RequireConfigValue = value
+End Function
+
+Private Function ConfigValueOrDefault(ByVal key As String, ByVal defaultValue As String) As String
+    Dim value As String
+
+    value = Trim(ReadConfigValue(key))
+    If value = "" Then
+        ConfigValueOrDefault = defaultValue
+    Else
+        ConfigValueOrDefault = value
+    End If
+End Function
+
+Private Function BuildExtraCredentialsTableLiteral() As String
+    Dim lo As ListObject
+    Dim row As ListRow
+    Dim parts As Collection
+    Dim rowsText As String
+    Dim idx As Long
+
+    Set lo = FindListObject(EXTRA_CREDENTIALS_TABLE_NAME)
+    Set parts = New Collection
+
+    For Each row In lo.ListRows
+        If IsEnabledValue(row.Range.Cells(1, 1).Value) Then
+            AddCredentialPair parts, CStr(row.Range.Cells(1, 2).Value), CStr(row.Range.Cells(1, 3).Value)
+            AddCredentialPair parts, CStr(row.Range.Cells(1, 4).Value), CStr(row.Range.Cells(1, 5).Value)
+        End If
+    Next row
+
+    If parts.Count = 0 Then
+        BuildExtraCredentialsTableLiteral = "#table({""credential_name"", ""credential_value""}, {})"
+        Exit Function
+    End If
+
+    For idx = 1 To parts.Count
+        If idx > 1 Then rowsText = rowsText & ", "
+        rowsText = rowsText & CStr(parts(idx))
+    Next idx
+
+    BuildExtraCredentialsTableLiteral = "#table({""credential_name"", ""credential_value""}, {" & rowsText & "})"
+End Function
+
+Private Sub AddCredentialPair(ByRef parts As Collection, ByVal credentialName As String, ByVal credentialValue As String)
+    credentialName = Trim(credentialName)
+    If credentialName <> "" And credentialValue <> "" And UCase(credentialValue) <> "CHANGE_ME" Then
+        parts.Add "{" & MTextLiteral(credentialName) & ", " & MTextLiteral(credentialValue) & "}"
+    End If
+End Sub
+
+Private Function IsEnabledValue(ByVal value As Variant) As Boolean
+    Dim textValue As String
+
+    textValue = LCase(Trim(CStr(value)))
+    IsEnabledValue = (textValue = "true" Or textValue = "1" Or textValue = "yes" Or textValue = "y" Or textValue = "да" Or textValue = "истина")
 End Function
 
 Private Function MTextLiteral(ByVal value As String) As String
@@ -279,3 +378,36 @@ Private Function StableToken(ByVal value As String) As String
     StableToken = "S" & Hex(CLng(hash))
 End Function
 '''
+
+
+def _vba_string_literal(value: str) -> str:
+    return '"' + value.replace('"', '""') + '"'
+
+
+def _vba_function_returning_text(function_name: str, text: str) -> str:
+    lines = [
+        f"Private Function {function_name}() As String",
+        "    Dim formula As String",
+        '    formula = ""',
+        "",
+    ]
+
+    for source_line in text.strip().splitlines():
+        lines.append(f"    formula = formula & {_vba_string_literal(source_line)} & vbCrLf")
+
+    lines.extend(
+        [
+            "",
+            f"    {function_name} = formula",
+            "End Function",
+        ]
+    )
+    return "\n".join(lines)
+
+
+ADVANCED_VBA_CODE = (
+    ADVANCED_VBA_CODE.strip()
+    + "\n\n"
+    + _vba_function_returning_text("TrinoRestFunctionFormula", M_QUERIES["fnTrinoRestQuery"])
+    + "\n"
+)

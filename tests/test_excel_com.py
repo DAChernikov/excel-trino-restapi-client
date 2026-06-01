@@ -528,6 +528,11 @@ def test_com_create_advanced_xlsm_installs_vba_and_button(tmp_path: Path, monkey
     assert "tblTrinoAdvancedTarget" in component.CodeModule.code
     assert "BuildFriendlyErrorMessage" in component.CodeModule.code
     assert "ResourceAccessForbidden" in component.CodeModule.code
+    assert "Formula.Firewall" in component.CodeModule.code
+    assert "ReadConfigValue" in component.CodeModule.code
+    assert "BuildExtraCredentialsTableLiteral" in component.CodeModule.code
+    assert 'formula = formula & "    Config = qConfig,' not in component.CodeModule.code
+    assert 'formula = formula & "        qExtraCredentials,' not in component.CodeModule.code
     assert "PrepareResultWorksheet resultWs\n    UpsertResultQuery queryName, sqlText" in component.CodeModule.code
     assert 'lo.TableStyle = "TableStyleMedium4"' in component.CodeModule.code
     assert ".PreserveFormatting = True" in component.CodeModule.code
