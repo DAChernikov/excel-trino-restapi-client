@@ -254,9 +254,11 @@ def _delete_advanced_button_if_exists(query_ws) -> None:
         pass
 
 
-def _install_advanced_button(wb, sheet_prefix: str) -> None:
+def _install_advanced_button(wb, sheet_prefix: str, macro_workbook_name: str | None = None) -> None:
     query_ws = wb.Worksheets(client_sheet_names(sheet_prefix).query)
     _delete_advanced_button_if_exists(query_ws)
+    workbook_name = macro_workbook_name or wb.Name
+    macro_name = f"'{workbook_name}'!{ADVANCED_VBA_MODULE_NAME}.TrinoRunQueryToSheet"
 
     try:
         anchor = query_ws.Range("A15")
@@ -268,7 +270,7 @@ def _install_advanced_button(wb, sheet_prefix: str) -> None:
             32,
         )
         button.Name = "btnTrinoRunQueryToSheet"
-        button.OnAction = "TrinoRunQueryToSheet"
+        button.OnAction = macro_name
         button.TextFrame.Characters().Text = "Выгрузить в лист"
     except Exception:
         note = query_ws.Range("A15")
@@ -279,10 +281,14 @@ def _install_advanced_button(wb, sheet_prefix: str) -> None:
             pass
 
 
-def install_advanced_client_automation(wb, sheet_prefix: str = "Trino") -> None:
+def install_advanced_client_automation(
+    wb,
+    sheet_prefix: str = "Trino",
+    macro_workbook_name: str | None = None,
+) -> None:
     install_power_query_into_workbook(wb, sheet_prefix=sheet_prefix)
     _install_advanced_vba_module(wb)
-    _install_advanced_button(wb, sheet_prefix=sheet_prefix)
+    _install_advanced_button(wb, sheet_prefix=sheet_prefix, macro_workbook_name=macro_workbook_name)
 
 
 def _open_workbook_and_install_power_query(
@@ -307,7 +313,11 @@ def _open_workbook_and_install_power_query(
 
         wb = excel.Workbooks.Open(str(workbook_path.resolve()))
         if advanced:
-            install_advanced_client_automation(wb, sheet_prefix=sheet_prefix)
+            install_advanced_client_automation(
+                wb,
+                sheet_prefix=sheet_prefix,
+                macro_workbook_name=final_path.name,
+            )
         else:
             install_power_query_into_workbook(wb, sheet_prefix=sheet_prefix)
 

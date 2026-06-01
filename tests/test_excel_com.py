@@ -230,6 +230,7 @@ class FakeConnections:
 class FakeWorkbook:
     def __init__(self, path: Path) -> None:
         self.path = path
+        self.Name = path.name
         self.Queries = FakeQueries()
         self.VBProject = FakeVBProject()
         self.helper_connection = FakeConnection("Query - qConfig")
@@ -247,6 +248,7 @@ class FakeWorkbook:
         self.save_as_calls.append({"path": path, "FileFormat": FileFormat})
         shutil.copyfile(self.path, path)
         self.path = Path(path)
+        self.Name = self.path.name
         self.saved = True
 
     def Close(self, SaveChanges: bool) -> None:
@@ -422,7 +424,7 @@ def test_com_create_advanced_xlsm_installs_vba_and_button(tmp_path: Path, monkey
 
     button = env.query_sheet.Shapes.items[0]
     assert button.Name == "btnTrinoRunQueryToSheet"
-    assert button.OnAction == "TrinoRunQueryToSheet"
+    assert button.OnAction == "'advanced.xlsm'!TrinoAdvancedClient.TrinoRunQueryToSheet"
     assert button.TextFrame.Characters().Text == "Выгрузить в лист"
 
     workbook = load_workbook(output, keep_vba=True)
