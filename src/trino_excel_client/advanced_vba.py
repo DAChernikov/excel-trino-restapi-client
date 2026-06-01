@@ -233,6 +233,9 @@ Private Function CreateResultTable(ByVal resultWs As Worksheet, ByVal queryName 
     connectionString = "OLEDB;Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location=" & queryName & ";Extended Properties="""""
     Set lo = resultWs.ListObjects.Add(0, connectionString, False, 1, resultWs.Range("A5"))
     lo.Name = tableName
+    On Error Resume Next
+    lo.TableStyle = "TableStyleMedium4"
+    On Error GoTo 0
 
     With lo.QueryTable
         .CommandType = 2
@@ -242,8 +245,10 @@ Private Function CreateResultTable(ByVal resultWs As Worksheet, ByVal queryName 
         .RefreshPeriod = 0
         .EnableRefresh = True
         .SaveData = True
-        .PreserveFormatting = False
+        .PreserveFormatting = True
+        .PreserveColumnInfo = True
         .AdjustColumnWidth = True
+        .RefreshStyle = 0
     End With
 
     On Error Resume Next

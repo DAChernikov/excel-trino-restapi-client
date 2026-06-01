@@ -19,6 +19,7 @@ XL_YES = 1
 XL_CMD_SQL = 2
 XL_OPENXML_WORKBOOK = 51
 XL_OPENXML_WORKBOOK_MACRO_ENABLED = 52
+XL_OVERWRITE_CELLS = 0
 
 
 def _require_excel_modules():
@@ -181,6 +182,10 @@ def _try_create_result_table(wb, sheet_prefix: str = "Trino"):
     )
 
     list_object.Name = "tblTrinoResult"
+    try:
+        list_object.TableStyle = "TableStyleMedium4"
+    except Exception:
+        pass
 
     query_table = list_object.QueryTable
     query_table.CommandType = XL_CMD_SQL
@@ -191,8 +196,10 @@ def _try_create_result_table(wb, sheet_prefix: str = "Trino"):
         ("RefreshPeriod", 0),
         ("EnableRefresh", True),
         ("SaveData", True),
-        ("PreserveFormatting", False),
+        ("PreserveFormatting", True),
+        ("PreserveColumnInfo", True),
         ("AdjustColumnWidth", True),
+        ("RefreshStyle", XL_OVERWRITE_CELLS),
     ):
         _safe_set_attr(query_table, attr_name, value)
 

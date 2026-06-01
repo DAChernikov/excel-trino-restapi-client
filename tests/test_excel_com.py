@@ -46,13 +46,16 @@ class FakeQueryTable:
         self.EnableRefresh = None
         self.SaveData = None
         self.PreserveFormatting = None
+        self.PreserveColumnInfo = None
         self.AdjustColumnWidth = None
+        self.RefreshStyle = None
         self.WorkbookConnection = workbook_connection
 
 
 class FakeListObject:
     def __init__(self, workbook_connection=None) -> None:
         self.Name = None
+        self.TableStyle = None
         self.QueryTable = FakeQueryTable(workbook_connection)
         self.deleted = False
 
@@ -359,8 +362,11 @@ def test_com_create_reuses_openpyxl_ui_and_installs_power_query(tmp_path: Path, 
     assert result_table.QueryTable.RefreshPeriod == 0
     assert result_table.QueryTable.EnableRefresh is True
     assert result_table.QueryTable.SaveData is True
-    assert result_table.QueryTable.PreserveFormatting is False
+    assert result_table.TableStyle == "TableStyleMedium4"
+    assert result_table.QueryTable.PreserveFormatting is True
+    assert result_table.QueryTable.PreserveColumnInfo is True
     assert result_table.QueryTable.AdjustColumnWidth is True
+    assert result_table.QueryTable.RefreshStyle == excel_com.XL_OVERWRITE_CELLS
     assert env.workbook.result_connection.RefreshWithRefreshAll is True
     assert env.workbook.result_connection.RefreshOnFileOpen is False
     assert env.workbook.result_connection.OLEDBConnection.BackgroundQuery is False
@@ -427,6 +433,10 @@ def test_com_create_advanced_xlsm_installs_vba_and_button(tmp_path: Path, monkey
     assert "BuildFriendlyErrorMessage" in component.CodeModule.code
     assert "ResourceAccessForbidden" in component.CodeModule.code
     assert "PrepareResultWorksheet resultWs\n    UpsertResultQuery queryName, sqlText" in component.CodeModule.code
+    assert 'lo.TableStyle = "TableStyleMedium4"' in component.CodeModule.code
+    assert ".PreserveFormatting = True" in component.CodeModule.code
+    assert ".PreserveColumnInfo = True" in component.CodeModule.code
+    assert ".RefreshStyle = 0" in component.CodeModule.code
     assert "PrepareResultWorksheet resultWs" in component.CodeModule.code
     assert "IsManagedResultTableName" in component.CodeModule.code
     assert "Private Function IsManagedResultTableName" in component.CodeModule.code
