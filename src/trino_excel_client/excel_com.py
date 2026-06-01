@@ -190,14 +190,16 @@ def _create_power_query_table(ws, *, table_name: str, query_name: str, destinati
     query_table = list_object.QueryTable
     query_table.CommandType = XL_CMD_SQL
     query_table.CommandText = f"SELECT * FROM [{query_name}]"
+    preserve_formatting = table_name != "tblTrinoResult"
+    preserve_column_info = table_name != "tblTrinoResult"
     for attr_name, value in (
         ("BackgroundQuery", False),
         ("RefreshOnFileOpen", False),
         ("RefreshPeriod", 0),
         ("EnableRefresh", True),
         ("SaveData", True),
-        ("PreserveFormatting", True),
-        ("PreserveColumnInfo", True),
+        ("PreserveFormatting", preserve_formatting),
+        ("PreserveColumnInfo", preserve_column_info),
         ("AdjustColumnWidth", True),
         ("RefreshStyle", XL_OVERWRITE_CELLS),
     ):

@@ -446,10 +446,12 @@ def test_com_create_reuses_openpyxl_ui_and_installs_power_query(tmp_path: Path, 
     assert result_table.QueryTable.EnableRefresh is True
     assert result_table.QueryTable.SaveData is True
     assert result_table.TableStyle == "TableStyleMedium4"
-    assert result_table.QueryTable.PreserveFormatting is True
-    assert result_table.QueryTable.PreserveColumnInfo is True
+    assert result_table.QueryTable.PreserveFormatting is False
+    assert result_table.QueryTable.PreserveColumnInfo is False
     assert result_table.QueryTable.AdjustColumnWidth is True
     assert result_table.QueryTable.RefreshStyle == excel_com.XL_OVERWRITE_CELLS
+    assert schema_table.QueryTable.PreserveFormatting is True
+    assert schema_table.QueryTable.PreserveColumnInfo is True
     format_conditions = env.result_sheet.ranges[excel_com.RESULT_TEMPORAL_FORMAT_RANGE].FormatConditions.items
     assert [condition.NumberFormat for condition in format_conditions] == [
         "dd.mm.yyyy",
