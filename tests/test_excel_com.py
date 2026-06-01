@@ -43,7 +43,7 @@ class FakeRange:
     @Formula.setter
     def Formula(self, value) -> None:
         self._formula = value
-        self.FormulaLocal = str(value).replace("COUNTIFS", "LOCAL_COUNTIFS")
+        self.FormulaLocal = str(value).replace("INDEX", "LOCAL_INDEX").replace("MATCH", "LOCAL_MATCH")
 
     def Clear(self) -> None:
         self.cleared = True
@@ -457,8 +457,9 @@ def test_com_create_reuses_openpyxl_ui_and_installs_power_query(tmp_path: Path, 
         "hh:mm:ss",
     ]
     assert "TrinoSchemaExcelFormat" in format_conditions[0].Formula1
-    assert "LOCAL_COUNTIFS" in format_conditions[0].Formula1
-    assert env.result_sheet.ranges["Z1"].cleared is True
+    assert "LOCAL_INDEX" in format_conditions[0].Formula1
+    assert "A$5" in format_conditions[0].Formula1
+    assert env.result_sheet.ranges["A6"].cleared is True
     assert env.workbook.schema_connection.RefreshWithRefreshAll is True
     assert env.workbook.schema_connection.RefreshOnFileOpen is False
     assert env.workbook.result_connection.RefreshWithRefreshAll is True

@@ -283,18 +283,24 @@ def _add_schema_format_names(wb, sheet_prefix: str) -> None:
         pass
 
 
-def _localize_excel_formula(ws, formula: str) -> str:
+def _localize_excel_formulas(ws, formulas: tuple[str, ...]) -> tuple[str, ...]:
     """
-    Excel conditional formatting formulas are locale-sensitive in COM.
-    Let Excel translate an invariant formula through a hidden helper cell.
+    Conditional formatting formulas are locale-sensitive in Excel COM.
+    Use A6, the top-left result data cell, so relative header references like A$5
+    stay aligned with the conditional formatting range that also starts at A6.
     """
     probe = None
+    localized: list[str] = []
+
     try:
-        probe = ws.Range("Z1")
-        probe.Formula = formula
-        return str(probe.FormulaLocal)
-    except Exception:
-        return formula
+        probe = ws.Range("A6")
+        for formula in formulas:
+            try:
+                probe.Formula = formula
+                localized.append(str(probe.FormulaLocal))
+            except Exception:
+                localized.append(formula)
+        return tuple(localized)
     finally:
         if probe is not None:
             try:
@@ -305,8 +311,7 @@ def _localize_excel_formula(ws, formula: str) -> str:
 
 def _add_temporal_number_format_rule(target_range, formula: str, number_format: str) -> None:
     try:
-        localized_formula = _localize_excel_formula(target_range.Worksheet, formula)
-        condition = target_range.FormatConditions.Add(Type=XL_EXPRESSION, Formula1=localized_formula)
+        condition = target_range.FormatConditions.Add(Type=XL_EXPRESSION, Formula1=formula)
         condition.NumberFormat = number_format
         condition.StopIfTrue = False
     except Exception:
@@ -320,21 +325,28 @@ def _apply_temporal_result_formats(result_ws) -> None:
     except Exception:
         pass
 
-    _add_temporal_number_format_rule(
-        target_range,
-        f'=COUNTIFS({SCHEMA_COLUMN_NAME_RANGE_NAME},A$5,{SCHEMA_EXCEL_FORMAT_RANGE_NAME},"date")>0',
-        "dd.mm.yyyy",
+    date_formula = (
+        f'=IFERROR(INDEX({SCHEMA_EXCEL_FORMAT_RANGE_NAME},'
+        f'MATCH(A$5,{SCHEMA_COLUMN_NAME_RANGE_NAME},0))="date",FALSE)'
     )
-    _add_temporal_number_format_rule(
-        target_range,
-        f'=OR(COUNTIFS({SCHEMA_COLUMN_NAME_RANGE_NAME},A$5,{SCHEMA_EXCEL_FORMAT_RANGE_NAME},"datetime")>0,COUNTIFS({SCHEMA_COLUMN_NAME_RANGE_NAME},A$5,{SCHEMA_EXCEL_FORMAT_RANGE_NAME},"datetimezone")>0)',
-        "dd.mm.yyyy hh:mm",
+    datetime_formula = (
+        f'=IFERROR(OR('
+        f'INDEX({SCHEMA_EXCEL_FORMAT_RANGE_NAME},MATCH(A$5,{SCHEMA_COLUMN_NAME_RANGE_NAME},0))="datetime",'
+        f'INDEX({SCHEMA_EXCEL_FORMAT_RANGE_NAME},MATCH(A$5,{SCHEMA_COLUMN_NAME_RANGE_NAME},0))="datetimezone"'
+        f'),FALSE)'
     )
-    _add_temporal_number_format_rule(
-        target_range,
-        f'=COUNTIFS({SCHEMA_COLUMN_NAME_RANGE_NAME},A$5,{SCHEMA_EXCEL_FORMAT_RANGE_NAME},"time")>0',
-        "hh:mm:ss",
+    time_formula = (
+        f'=IFERROR(INDEX({SCHEMA_EXCEL_FORMAT_RANGE_NAME},'
+        f'MATCH(A$5,{SCHEMA_COLUMN_NAME_RANGE_NAME},0))="time",FALSE)'
     )
+    localized_formulas = _localize_excel_formulas(
+        result_ws,
+        (date_formula, datetime_formula, time_formula),
+    )
+
+    _add_temporal_number_format_rule(target_range, localized_formulas[0], "dd.mm.yyyy")
+    _add_temporal_number_format_rule(target_range, localized_formulas[1], "dd.mm.yyyy hh:mm")
+    _add_temporal_number_format_rule(target_range, localized_formulas[2], "hh:mm:ss")
 
 
 def install_power_query_into_workbook(wb, sheet_prefix: str = "Trino") -> None:
