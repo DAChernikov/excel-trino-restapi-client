@@ -191,6 +191,8 @@ def _try_create_result_table(wb, sheet_prefix: str = "Trino"):
         ("RefreshPeriod", 0),
         ("EnableRefresh", True),
         ("SaveData", True),
+        ("PreserveFormatting", False),
+        ("AdjustColumnWidth", True),
     ):
         _safe_set_attr(query_table, attr_name, value)
 

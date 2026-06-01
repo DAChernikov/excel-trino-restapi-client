@@ -43,8 +43,23 @@ Public Sub TrinoRunQueryToSheet()
     Exit Sub
 
 Fail:
-    MsgBox "Не удалось выполнить выгрузку Trino." & vbCrLf & Err.Description, vbCritical, "Trino Excel Client"
+    MsgBox BuildFriendlyErrorMessage(Err.Description), vbCritical, "Trino Excel Client"
 End Sub
+
+Private Function BuildFriendlyErrorMessage(ByVal details As String) As String
+    Dim message As String
+
+    message = "Не удалось выполнить выгрузку Trino." & vbCrLf & details
+
+    If InStr(1, details, "ResourceAccessForbidden", vbTextCompare) > 0 Then
+        message = message & vbCrLf & vbCrLf
+        message = message & "Excel заблокировал доступ Power Query к Trino host на этом ПК." & vbCrLf
+        message = message & "Откройте: Данные -> Получить данные -> Параметры источника данных." & vbCrLf
+        message = message & "Очистите старые разрешения для Trino host и при следующем запросе выберите Anonymous."
+    End If
+
+    BuildFriendlyErrorMessage = message
+End Function
 
 Private Function ReadAdvancedValue(ByVal key As String) As String
     Dim lo As ListObject
@@ -227,6 +242,8 @@ Private Function CreateResultTable(ByVal resultWs As Worksheet, ByVal queryName 
         .RefreshPeriod = 0
         .EnableRefresh = True
         .SaveData = True
+        .PreserveFormatting = False
+        .AdjustColumnWidth = True
     End With
 
     On Error Resume Next

@@ -29,6 +29,7 @@ def test_create_workbook_ui_creates_client_sheets_and_tables(tmp_path: Path) -> 
     assert "extraCredentials параметров Trino" in workbook[names.config]["A17"].value
     assert workbook[names.config]["B7"].number_format != ";;;"
     assert workbook[names.config]["B8"].number_format == ";;;"
+    assert workbook[names.config]["B6"].value == "https://trino.mlops.isb"
     assert workbook[names.config]["A13"].value == "result_limit_rows"
     assert workbook[names.config]["B13"].value == "1000000"
     assert workbook[names.config]["D6"].value.startswith("URL координатора")

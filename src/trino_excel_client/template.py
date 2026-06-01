@@ -27,7 +27,7 @@ CONFIG_TABLE = TableSpec(
     name="tblTrinoConfig",
     headers=("Параметр", "Значение", "Обязателен", "Комментарий"),
     rows=(
-        ("trino_base_url", "https://trino.example.com", "да", "URL координатора Trino без хвоста /v1/statement"),
+        ("trino_base_url", "https://trino.mlops.isb", "да", "URL координатора Trino без хвоста /v1/statement"),
         ("trino_user", "CHANGE_ME", "да", "Пользователь Basic Auth и заголовок X-Trino-User"),
         ("trino_password", "CHANGE_ME", "да", "Пароль Basic Auth"),
         ("trino_catalog", "", "нет", "Необязательный заголовок X-Trino-Catalog"),
@@ -84,6 +84,7 @@ HELP_TABLE = TableSpec(
         ("3", "Написать SQL", "Откройте лист Trino Query и введите SQL в таблицу tblTrinoSql. Результат загружается отдельно на лист Trino Result."),
         ("4", "Обновить данные", "Нажмите Данные -> Обновить все. При первом обращении Excel может запросить настройки доступа к Trino host."),
         ("5", "Окно credentials", "В Power Query credential dialog обычно нужно выбрать Anonymous, потому что Basic Auth передается M-кодом через HTTP headers."),
+        ("5a", "Если доступ запрещен", "Если появляется ResourceAccessForbiddenException, откройте Данные -> Получить данные -> Параметры источника данных, очистите старые разрешения для Trino host и выберите Anonymous при следующем обновлении."),
         ("6", "Лимит строк", "Параметр result_limit_rows по умолчанию равен 1000000. M-код добавляет внешний LIMIT и не дает загрузить в Excel больше этого количества строк."),
         ("7", "Большие результаты", "Если связь с Trino оборвалась во время выдачи результата, повторите запрос и уменьшите результат через LIMIT, фильтры, выбор колонок или агрегаты."),
         ("8", "Advanced .xlsm", "В расширенном шаблоне можно указать лист результата на Trino Query и нажать кнопку выгрузки. Если лист уже существует, его результат будет обновлен."),

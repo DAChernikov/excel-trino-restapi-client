@@ -45,6 +45,8 @@ class FakeQueryTable:
         self.RefreshPeriod = None
         self.EnableRefresh = None
         self.SaveData = None
+        self.PreserveFormatting = None
+        self.AdjustColumnWidth = None
         self.WorkbookConnection = workbook_connection
 
 
@@ -357,6 +359,8 @@ def test_com_create_reuses_openpyxl_ui_and_installs_power_query(tmp_path: Path, 
     assert result_table.QueryTable.RefreshPeriod == 0
     assert result_table.QueryTable.EnableRefresh is True
     assert result_table.QueryTable.SaveData is True
+    assert result_table.QueryTable.PreserveFormatting is False
+    assert result_table.QueryTable.AdjustColumnWidth is True
     assert env.workbook.result_connection.RefreshWithRefreshAll is True
     assert env.workbook.result_connection.RefreshOnFileOpen is False
     assert env.workbook.result_connection.OLEDBConnection.BackgroundQuery is False
@@ -420,6 +424,8 @@ def test_com_create_advanced_xlsm_installs_vba_and_button(tmp_path: Path, monkey
     assert component.Name == "TrinoAdvancedClient"
     assert "TrinoRunQueryToSheet" in component.CodeModule.code
     assert "tblTrinoAdvancedTarget" in component.CodeModule.code
+    assert "BuildFriendlyErrorMessage" in component.CodeModule.code
+    assert "ResourceAccessForbidden" in component.CodeModule.code
     assert "PrepareResultWorksheet resultWs\n    UpsertResultQuery queryName, sqlText" in component.CodeModule.code
     assert "PrepareResultWorksheet resultWs" in component.CodeModule.code
     assert "IsManagedResultTableName" in component.CodeModule.code
