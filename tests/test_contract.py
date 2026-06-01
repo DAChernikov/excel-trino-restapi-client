@@ -22,6 +22,10 @@ def test_m_code_contains_bigdata_row_limit_controls() -> None:
     assert "Trino result row limit exceeded" in function_formula
     assert "Table.TransformColumnTypes" in function_formula
     assert "TrinoTypeToPowerQueryType" in function_formula
+    assert 'BaseType = "date" then\n                    type date' in function_formula
+    assert 'Text.StartsWith(NormalizedType, "timestamp") and Text.Contains(NormalizedType, "with time zone") then\n                    type datetimezone' in function_formula
+    assert 'Text.StartsWith(NormalizedType, "timestamp") then\n                    type datetime' in function_formula
+    assert 'Text.StartsWith(NormalizedType, "time") then\n                    type time' in function_formula
     assert "result_limit_rows" in result_formula
     assert "TrinoResultSchema" in M_QUERIES
     assert "ReturnSchemaOnly = true" in M_QUERIES["TrinoResultSchema"]

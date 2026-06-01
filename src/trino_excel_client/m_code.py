@@ -489,11 +489,13 @@ let
                 else if BaseType = "boolean" then
                     type logical
                 else if BaseType = "date" then
-                    null
+                    type date
+                else if Text.StartsWith(NormalizedType, "timestamp") and Text.Contains(NormalizedType, "with time zone") then
+                    type datetimezone
                 else if Text.StartsWith(NormalizedType, "timestamp") then
-                    null
+                    type datetime
                 else if Text.StartsWith(NormalizedType, "time") then
-                    null
+                    type time
                 else if List.Contains({"varchar", "char", "json", "uuid", "ipaddress"}, BaseType) then
                     type text
                 else
