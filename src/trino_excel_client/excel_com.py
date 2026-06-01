@@ -283,9 +283,30 @@ def _add_schema_format_names(wb, sheet_prefix: str) -> None:
         pass
 
 
+def _localize_excel_formula(ws, formula: str) -> str:
+    """
+    Excel conditional formatting formulas are locale-sensitive in COM.
+    Let Excel translate an invariant formula through a hidden helper cell.
+    """
+    probe = None
+    try:
+        probe = ws.Range("Z1")
+        probe.Formula = formula
+        return str(probe.FormulaLocal)
+    except Exception:
+        return formula
+    finally:
+        if probe is not None:
+            try:
+                probe.Clear()
+            except Exception:
+                pass
+
+
 def _add_temporal_number_format_rule(target_range, formula: str, number_format: str) -> None:
     try:
-        condition = target_range.FormatConditions.Add(Type=XL_EXPRESSION, Formula1=formula)
+        localized_formula = _localize_excel_formula(target_range.Worksheet, formula)
+        condition = target_range.FormatConditions.Add(Type=XL_EXPRESSION, Formula1=localized_formula)
         condition.NumberFormat = number_format
         condition.StopIfTrue = False
     except Exception:

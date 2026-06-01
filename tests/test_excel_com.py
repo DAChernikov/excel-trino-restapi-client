@@ -23,9 +23,12 @@ class FakePythonCom:
 
 
 class FakeRange:
-    def __init__(self, address: str) -> None:
+    def __init__(self, address: str, worksheet=None) -> None:
         self.address = address
+        self.Worksheet = worksheet
         self.Value = None
+        self._formula = None
+        self.FormulaLocal = None
         self.WrapText = None
         self.cleared = False
         self.Left = 10
@@ -33,8 +36,19 @@ class FakeRange:
         self.Interior = type("Interior", (), {"Color": None})()
         self.FormatConditions = FakeFormatConditions()
 
+    @property
+    def Formula(self):
+        return self._formula
+
+    @Formula.setter
+    def Formula(self, value) -> None:
+        self._formula = value
+        self.FormulaLocal = str(value).replace("COUNTIFS", "LOCAL_COUNTIFS")
+
     def Clear(self) -> None:
         self.cleared = True
+        self._formula = None
+        self.FormulaLocal = None
 
 
 class FakeFormatCondition:
@@ -120,7 +134,7 @@ class FakeWorksheet:
 
     def Range(self, address: str) -> FakeRange:
         if address not in self.ranges:
-            self.ranges[address] = FakeRange(address)
+            self.ranges[address] = FakeRange(address, self)
         return self.ranges[address]
 
 
@@ -443,6 +457,8 @@ def test_com_create_reuses_openpyxl_ui_and_installs_power_query(tmp_path: Path, 
         "hh:mm:ss",
     ]
     assert "TrinoSchemaExcelFormat" in format_conditions[0].Formula1
+    assert "LOCAL_COUNTIFS" in format_conditions[0].Formula1
+    assert env.result_sheet.ranges["Z1"].cleared is True
     assert env.workbook.schema_connection.RefreshWithRefreshAll is True
     assert env.workbook.schema_connection.RefreshOnFileOpen is False
     assert env.workbook.result_connection.RefreshWithRefreshAll is True
