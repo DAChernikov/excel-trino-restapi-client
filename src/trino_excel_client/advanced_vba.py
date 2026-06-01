@@ -35,7 +35,7 @@ Public Sub TrinoRunQueryToSheet()
 
     Set resultWs = EnsureWorksheet(targetSheetName)
     UpsertResultQuery queryName, sqlText
-    DeleteListObjectIfExists tableName
+    PrepareResultWorksheet resultWs
     Set resultTable = CreateResultTable(resultWs, queryName, tableName)
 
     resultTable.QueryTable.Refresh BackgroundQuery:=False
@@ -183,19 +183,27 @@ Private Function MTextLiteral(ByVal value As String) As String
     MTextLiteral = """" & value & """"
 End Function
 
-Private Sub DeleteListObjectIfExists(ByVal tableName As String)
-    Dim ws As Worksheet
-    Dim lo As ListObject
+Private Sub PrepareResultWorksheet(ByVal resultWs As Worksheet)
+    DeleteManagedResultTablesOnSheet resultWs
+End Sub
 
-    For Each ws In ThisWorkbook.Worksheets
-        For Each lo In ws.ListObjects
-            If lo.Name = tableName Then
-                lo.Range.Clear
-                lo.Delete
-                Exit Sub
-            End If
-        Next lo
-    Next ws
+Private Sub DeleteManagedResultTablesOnSheet(ByVal resultWs As Worksheet)
+    Dim idx As Long
+    Dim lo As ListObject
+    Dim tableAddress As String
+
+    For idx = resultWs.ListObjects.Count To 1 Step -1
+        Set lo = resultWs.ListObjects(idx)
+        If IsManagedResultTableName(lo.Name) Then
+            tableAddress = lo.Range.Address
+            lo.Delete
+            resultWs.Range(tableAddress).Clear
+        End If
+    Next idx
+End Sub
+
+Private Function IsManagedResultTableName(ByVal tableName As String) As Boolean
+    IsManagedResultTableName = (Left$(tableName, Len("tblTrinoResult")) = "tblTrinoResult")
 End Sub
 
 Private Function CreateResultTable(ByVal resultWs As Worksheet, ByVal queryName As String, ByVal tableName As String) As ListObject
