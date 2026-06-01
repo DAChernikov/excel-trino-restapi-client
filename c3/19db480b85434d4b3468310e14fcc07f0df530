@@ -1,0 +1,22 @@
+tests/test_excel_com.py
+  s_819cc380a7b08a::t_cdcdc0b9b4e32e 233,251,427
+src/trino_excel_client/excel_com.py
+  s_819cc380a7b08a::t_b9f2a616ecec93 257,260-261,284-288,291,316-320
+  s_819cc380a7b08a::t_743d3dab3e3486 273
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "c319db480b85434d4b3468310e14fcc07f0df530",
+  "prompts": {},
+  "sessions": {
+    "s_819cc380a7b08a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e4a8c-feec-7863-84d3-818764e87a13",
+        "model": "gpt-5.5"
+      },
+      "human_author": "DAChernikov <129949710+DAChernikov@users.noreply.github.com>"
+    }
+  }
+}
