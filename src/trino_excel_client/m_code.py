@@ -561,7 +561,7 @@ let
                     List.Transform(
                         List.Select(
                             ColumnTypePairs,
-                            each Text.StartsWith(_{2}, "time")
+                            each Text.StartsWith(_{2}, "time") and not Text.StartsWith(_{2}, "timestamp")
                         ),
                         (columnSpec) => {columnSpec{0}, each ParseTrinoTime(_), type time}
                     ),

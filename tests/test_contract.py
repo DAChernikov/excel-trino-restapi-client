@@ -53,6 +53,12 @@ def test_m_code_parses_all_trino_temporal_types_explicitly() -> None:
     assert "type time" in function_formula
 
 
+def test_m_code_does_not_parse_timestamp_as_time() -> None:
+    function_formula = M_QUERIES["fnTrinoRestQuery"]
+
+    assert 'Text.StartsWith(_{2}, "time") and not Text.StartsWith(_{2}, "timestamp")' in function_formula
+
+
 def test_default_source_name_is_official_excel_client_name() -> None:
     assert "Microsoft Excel PowerQuery client" in M_QUERIES["fnTrinoRestQuery"]
 
