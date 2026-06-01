@@ -141,6 +141,7 @@ let
     MaxRetryCount = 5,
     RetryBaseDelaySeconds = 0.5,
     ResultLimitRows = Number.RoundDown(ToNumber(GetOption("ResultLimitRows", 1000000), 1000000)),
+    ReturnSchemaOnly = try Logical.From(GetOption("ReturnSchemaOnly", false)) otherwise false,
     NormalizeSqlForLimit = (query as text) as text =>
         let
             Trimmed = Text.Trim(query),
@@ -151,8 +152,16 @@ let
                     Trimmed
         in
             WithoutTrailingSemicolon,
+    SchemaSqlText =
+        "select * from ("
+            & "#(lf)"
+            & NormalizeSqlForLimit(sqlText)
+            & "#(lf)"
+            & ") as excel_trino_client_schema limit 0",
     EffectiveSqlText =
-        if ResultLimitRows > 0 then
+        if ReturnSchemaOnly then
+            SchemaSqlText
+        else if ResultLimitRows > 0 then
             "select * from ("
                 & "#(lf)"
                 & NormalizeSqlForLimit(sqlText)
@@ -491,6 +500,22 @@ let
                     null
         in
             ResultType,
+    TrinoTypeToExcelFormat = (normalizedType as text) as text =>
+        let
+            BaseType = if Text.Contains(normalizedType, "(") then Text.BeforeDelimiter(normalizedType, "(") else normalizedType,
+            ResultFormat =
+                if BaseType = "date" then
+                    "date"
+                else if Text.StartsWith(normalizedType, "timestamp") and Text.Contains(normalizedType, "with time zone") then
+                    "datetimezone"
+                else if Text.StartsWith(normalizedType, "timestamp") then
+                    "datetime"
+                else if Text.StartsWith(normalizedType, "time") then
+                    "time"
+                else
+                    ""
+        in
+            ResultFormat,
     ColumnTypePairs =
         if PageWithColumns <> null then
             List.Transform(
@@ -500,10 +525,15 @@ let
                         TrinoType = try _[type] otherwise null,
                         NormalizedType = if TrinoType = null then "" else Text.Lower(Text.Trim(Text.From(TrinoType)))
                     in
-                        {_[name], TrinoTypeToPowerQueryType(TrinoType), NormalizedType}
+                        {_[name], TrinoTypeToPowerQueryType(TrinoType), NormalizedType, if TrinoType = null then "" else Text.From(TrinoType)}
             )
         else
             {},
+    SchemaRows =
+        List.Transform(
+            ColumnTypePairs,
+            each {_{0}, _{3}, TrinoTypeToExcelFormat(_{2})}
+        ),
     AllRows =
         List.Combine(
             List.Transform(
@@ -524,7 +554,12 @@ let
         & "Rows seen before stop: "
         & Text.From(TotalRowsSeen),
     Result =
-        if IsOverflow then
+        if ReturnSchemaOnly then
+            Table.TransformColumnTypes(
+                Table.FromRows(SchemaRows, {"ColumnName", "TrinoType", "ExcelFormat"}),
+                {{"ColumnName", type text}, {"TrinoType", type text}, {"ExcelFormat", type text}}
+            )
+        else if IsOverflow then
             error Error.Record(
                 "Trino result row limit exceeded",
                 OverflowMessage,
@@ -595,6 +630,45 @@ let
                 TypedTable
         else
             #table({}, {})
+in
+    Result
+''',
+    "TrinoResultSchema": r'''
+let
+    Config = qConfig,
+    RequiredFields = {"trino_base_url", "trino_user", "trino_password"},
+    MissingFields = List.Select(
+        RequiredFields,
+        each not Record.HasFields(Config, _) or Text.Trim(Text.From(Record.Field(Config, _))) = ""
+    ),
+    Result =
+        if List.Count(MissingFields) > 0 then
+            error Error.Record(
+                "Trino configuration error",
+                "Fill required Config parameters: " & Text.Combine(MissingFields, ", "),
+                MissingFields
+            )
+        else if Text.Trim(qSqlText) = "" then
+            error Error.Record(
+                "Trino SQL error",
+                "Fill SQL text in tblTrinoSql.",
+                null
+            )
+        else
+            fnTrinoRestQuery(
+                Config[trino_base_url],
+                Config[trino_user],
+                Config[trino_password],
+                qSqlText,
+                qExtraCredentials,
+                [
+                    TimeZone = try Config[time_zone] otherwise "Europe/Moscow",
+                    Catalog = try Config[trino_catalog] otherwise "",
+                    Schema = try Config[trino_schema] otherwise "",
+                    RequestTimeoutMinutes = try Config[request_timeout_minutes] otherwise 5,
+                    ReturnSchemaOnly = true
+                ]
+            )
 in
     Result
 ''',

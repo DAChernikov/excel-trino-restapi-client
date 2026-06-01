@@ -16,10 +16,15 @@ class ClientSheetNames:
     config: str
     query: str
     result: str
+    schema: str
     help: str
 
     @property
-    def all(self) -> tuple[str, str, str, str]:
+    def all(self) -> tuple[str, str, str, str, str]:
+        return (self.config, self.query, self.result, self.schema, self.help)
+
+    @property
+    def visible(self) -> tuple[str, str, str, str]:
         return (self.config, self.query, self.result, self.help)
 
 
@@ -86,6 +91,7 @@ HELP_TABLE = TableSpec(
         ("5", "Окно credentials", "В Power Query credential dialog обычно нужно выбрать Anonymous, потому что Basic Auth передается M-кодом через HTTP headers."),
         ("5a", "Если доступ запрещен", "Если появляется ResourceAccessForbiddenException, откройте Данные -> Получить данные -> Параметры источника данных, очистите старые разрешения для Trino host и выберите Anonymous при следующем обновлении."),
         ("6", "Лимит строк", "Параметр result_limit_rows по умолчанию равен 1000000. M-код добавляет внешний LIMIT и не дает загрузить в Excel больше этого количества строк."),
+        ("6a", "Форматы дат", "В обычном xlsx-шаблоне скрытый лист Trino Schema получает типы колонок из Trino и помогает Excel отображать date/timestamp как даты без макросов."),
         ("7", "Большие результаты", "Если связь с Trino оборвалась во время выдачи результата, повторите запрос и уменьшите результат через LIMIT, фильтры, выбор колонок или агрегаты."),
         ("8", "Advanced .xlsm", "В расширенном шаблоне укажите лист результата на Trino Query и нажмите кнопку Выгрузить в лист. Не используйте Данные -> Обновить все как основной сценарий advanced-выгрузки."),
         ("9", "Безопасность", "Скрытие парольных ячеек не является шифрованием. Храните книгу так, как если бы внутри были реальные учетные данные."),
@@ -98,6 +104,7 @@ REQUIRED_QUERY_NAMES = (
     "qSqlText",
     "qExtraCredentials",
     "fnTrinoRestQuery",
+    "TrinoResultSchema",
     "TrinoResult",
 )
 
@@ -118,5 +125,6 @@ def client_sheet_names(sheet_prefix: str = "Trino") -> ClientSheetNames:
         config=sheet_name(sheet_prefix, "Config"),
         query=sheet_name(sheet_prefix, "Query"),
         result=sheet_name(sheet_prefix, "Result"),
+        schema=sheet_name(sheet_prefix, "Schema"),
         help=sheet_name(sheet_prefix, "Help"),
     )

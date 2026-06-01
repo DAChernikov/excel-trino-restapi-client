@@ -23,7 +23,10 @@ def test_m_code_contains_bigdata_row_limit_controls() -> None:
     assert "Table.TransformColumnTypes" in function_formula
     assert "TrinoTypeToPowerQueryType" in function_formula
     assert "result_limit_rows" in result_formula
-    assert "TrinoResultSchema" not in M_QUERIES
+    assert "TrinoResultSchema" in M_QUERIES
+    assert "ReturnSchemaOnly = true" in M_QUERIES["TrinoResultSchema"]
+    assert "excel_trino_client_schema limit 0" in function_formula
+    assert "TrinoTypeToExcelFormat" in function_formula
 
 
 def test_m_code_parses_timestamp_as_datetime_before_time() -> None:

@@ -31,9 +31,32 @@ class FakeRange:
         self.Left = 10
         self.Top = 10
         self.Interior = type("Interior", (), {"Color": None})()
+        self.FormatConditions = FakeFormatConditions()
 
     def Clear(self) -> None:
         self.cleared = True
+
+
+class FakeFormatCondition:
+    def __init__(self, formula: str) -> None:
+        self.Formula1 = formula
+        self.NumberFormat = None
+        self.StopIfTrue = None
+
+
+class FakeFormatConditions:
+    def __init__(self) -> None:
+        self.items: list[FakeFormatCondition] = []
+        self.deleted = False
+
+    def Delete(self) -> None:
+        self.deleted = True
+        self.items.clear()
+
+    def Add(self, *, Type, Formula1: str) -> FakeFormatCondition:
+        condition = FakeFormatCondition(Formula1)
+        self.items.append(condition)
+        return condition
 
 
 class FakeQueryTable:
@@ -64,10 +87,10 @@ class FakeListObject:
 
 
 class FakeListObjects:
-    def __init__(self, result_connection=None) -> None:
+    def __init__(self, workbook_connection=None) -> None:
         self.add_calls: list[dict[str, object]] = []
         self.fail_add = False
-        self.result = FakeListObject(result_connection)
+        self.result = FakeListObject(workbook_connection)
 
     def __call__(self, name: str) -> FakeListObject:
         raise KeyError(name)
@@ -88,11 +111,12 @@ class FakeListObjects:
 
 
 class FakeWorksheet:
-    def __init__(self, name: str, result_connection=None) -> None:
+    def __init__(self, name: str, workbook_connection=None) -> None:
         self.name = name
-        self.ListObjects = FakeListObjects(result_connection)
+        self.ListObjects = FakeListObjects(workbook_connection)
         self.Shapes = FakeShapes()
         self.ranges: dict[str, FakeRange] = {}
+        self.Visible = None
 
     def Range(self, address: str) -> FakeRange:
         if address not in self.ranges:
@@ -101,12 +125,14 @@ class FakeWorksheet:
 
 
 class FakeWorksheets:
-    def __init__(self, sheet_prefix: str = "Trino", result_connection=None) -> None:
+    def __init__(self, sheet_prefix: str = "Trino", result_connection=None, schema_connection=None) -> None:
         self.query_sheet = FakeWorksheet(client_sheet_names(sheet_prefix).query)
         self.result_sheet = FakeWorksheet(client_sheet_names(sheet_prefix).result, result_connection)
+        self.schema_sheet = FakeWorksheet(client_sheet_names(sheet_prefix).schema, schema_connection)
         self.by_name = {
             self.query_sheet.name: self.query_sheet,
             self.result_sheet.name: self.result_sheet,
+            self.schema_sheet.name: self.schema_sheet,
         }
 
     def __call__(self, name: str) -> FakeWorksheet:
@@ -128,6 +154,28 @@ class FakeQueries:
                 "Description": Description,
             }
         )
+
+
+class FakeName:
+    def __init__(self, name: str) -> None:
+        self.name = name
+        self.deleted = False
+
+    def Delete(self) -> None:
+        self.deleted = True
+
+
+class FakeNames:
+    def __init__(self) -> None:
+        self.added: list[dict[str, str]] = []
+        self._names: dict[str, FakeName] = {}
+
+    def __call__(self, name: str) -> FakeName:
+        return self._names[name]
+
+    def Add(self, *, Name: str, RefersTo: str) -> None:
+        self.added.append({"Name": Name, "RefersTo": RefersTo})
+        self._names[Name] = FakeName(Name)
 
 
 class FakeCodeModule:
@@ -237,11 +285,16 @@ class FakeWorkbook:
         self.path = path
         self.Name = path.name
         self.Queries = FakeQueries()
+        self.Names = FakeNames()
         self.VBProject = FakeVBProject()
         self.helper_connection = FakeConnection("Query - qConfig")
         self.result_connection = FakeConnection("Query - TrinoResult")
-        self.Connections = FakeConnections([self.helper_connection, self.result_connection])
-        self.Worksheets = FakeWorksheets(result_connection=self.result_connection)
+        self.schema_connection = FakeConnection("Query - TrinoResultSchema")
+        self.Connections = FakeConnections([self.helper_connection, self.schema_connection, self.result_connection])
+        self.Worksheets = FakeWorksheets(
+            result_connection=self.result_connection,
+            schema_connection=self.schema_connection,
+        )
         self.saved = False
         self.save_as_calls: list[dict[str, object]] = []
         self.close_calls: list[bool] = []
@@ -313,6 +366,10 @@ class FakeComEnvironment:
     def result_sheet(self) -> FakeWorksheet:
         return self.workbook.Worksheets.result_sheet
 
+    @property
+    def schema_sheet(self) -> FakeWorksheet:
+        return self.workbook.Worksheets.schema_sheet
+
 
 def _install_fake_com(monkeypatch) -> FakeComEnvironment:
     env = FakeComEnvironment()
@@ -344,6 +401,7 @@ def test_com_create_reuses_openpyxl_ui_and_installs_power_query(tmp_path: Path, 
 
     workbook = load_workbook(output)
     assert workbook.sheetnames == list(client_sheet_names().all)
+    assert workbook[client_sheet_names().schema].sheet_state == "hidden"
     assert set(REQUIRED_TABLE_NAMES).issubset(_table_names(output))
     assert workbook["Trino Result"]["A5"].value == (
         "В preview-книге на Unix есть только UI-таблицы. "
@@ -351,6 +409,17 @@ def test_com_create_reuses_openpyxl_ui_and_installs_power_query(tmp_path: Path, 
     )
 
     assert [query["Name"] for query in env.workbook.Queries.added] == list(M_QUERIES)
+    assert env.schema_sheet.ranges["A1:Z500"].cleared is True
+    assert env.schema_sheet.ListObjects.add_calls[0]["destination"].address == "A1"
+    schema_table = env.schema_sheet.ListObjects.result
+    assert schema_table.Name == "tblTrinoResultSchema"
+    assert schema_table.QueryTable.CommandText == "SELECT * FROM [TrinoResultSchema]"
+    assert schema_table.QueryTable.RefreshStyle == excel_com.XL_OVERWRITE_CELLS
+    assert env.schema_sheet.Visible == excel_com.XL_SHEET_HIDDEN
+    assert env.workbook.Names.added == [
+        {"Name": "TrinoSchemaColumnName", "RefersTo": "='Trino Schema'!$A:$A"},
+        {"Name": "TrinoSchemaExcelFormat", "RefersTo": "='Trino Schema'!$C:$C"},
+    ]
     assert env.result_sheet.ranges["A5:Z500"].cleared is True
     assert env.result_sheet.ListObjects.add_calls[0]["destination"].address == "A5"
     result_table = env.result_sheet.ListObjects.result
@@ -367,6 +436,15 @@ def test_com_create_reuses_openpyxl_ui_and_installs_power_query(tmp_path: Path, 
     assert result_table.QueryTable.PreserveColumnInfo is True
     assert result_table.QueryTable.AdjustColumnWidth is True
     assert result_table.QueryTable.RefreshStyle == excel_com.XL_OVERWRITE_CELLS
+    format_conditions = env.result_sheet.ranges[excel_com.RESULT_TEMPORAL_FORMAT_RANGE].FormatConditions.items
+    assert [condition.NumberFormat for condition in format_conditions] == [
+        "dd.mm.yyyy",
+        "dd.mm.yyyy hh:mm",
+        "hh:mm:ss",
+    ]
+    assert "TrinoSchemaExcelFormat" in format_conditions[0].Formula1
+    assert env.workbook.schema_connection.RefreshWithRefreshAll is True
+    assert env.workbook.schema_connection.RefreshOnFileOpen is False
     assert env.workbook.result_connection.RefreshWithRefreshAll is True
     assert env.workbook.result_connection.RefreshOnFileOpen is False
     assert env.workbook.result_connection.OLEDBConnection.BackgroundQuery is False
@@ -428,6 +506,7 @@ def test_com_create_advanced_xlsm_installs_vba_and_button(tmp_path: Path, monkey
     assert env.workbook.VBProject.VBComponents.added
     component = env.workbook.VBProject.VBComponents.added[0]
     assert component.Name == "TrinoAdvancedClient"
+    assert "TrinoResultSchema" not in [query["Name"] for query in env.workbook.Queries.added]
     assert "TrinoRunQueryToSheet" in component.CodeModule.code
     assert "tblTrinoAdvancedTarget" in component.CodeModule.code
     assert "BuildFriendlyErrorMessage" in component.CodeModule.code

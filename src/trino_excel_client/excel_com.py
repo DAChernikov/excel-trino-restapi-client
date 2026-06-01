@@ -20,6 +20,14 @@ XL_CMD_SQL = 2
 XL_OPENXML_WORKBOOK = 51
 XL_OPENXML_WORKBOOK_MACRO_ENABLED = 52
 XL_OVERWRITE_CELLS = 0
+XL_EXPRESSION = 2
+XL_SHEET_HIDDEN = 0
+
+SCHEMA_QUERY_NAME = "TrinoResultSchema"
+SCHEMA_TABLE_NAME = "tblTrinoResultSchema"
+SCHEMA_COLUMN_NAME_RANGE_NAME = "TrinoSchemaColumnName"
+SCHEMA_EXCEL_FORMAT_RANGE_NAME = "TrinoSchemaExcelFormat"
+RESULT_TEMPORAL_FORMAT_RANGE = "A6:XFD1048576"
 
 
 def _require_excel_modules():
@@ -49,8 +57,21 @@ def _delete_query_if_exists(wb, query_name: str) -> None:
         pass
 
 
-def _add_power_queries(wb) -> None:
+def _delete_name_if_exists(wb, name: str) -> None:
+    try:
+        wb.Names(name).Delete()
+    except Exception:
+        pass
+
+
+def _quote_excel_sheet_name(name: str) -> str:
+    return "'" + name.replace("'", "''") + "'"
+
+
+def _add_power_queries(wb, include_schema: bool = True) -> None:
     for query_name, formula in M_QUERIES.items():
+        if not include_schema and query_name == SCHEMA_QUERY_NAME:
+            continue
         _delete_query_if_exists(wb, query_name)
         wb.Queries.Add(
             Name=query_name,
@@ -92,13 +113,14 @@ def _enable_manual_result_refresh(connection) -> None:
     _safe_set_attr(connection, "RefreshWithRefreshAll", True)
 
 
-def _enforce_manual_refresh_only(wb, result_connection=None) -> None:
-    result_connection_name = None
-    if result_connection is not None:
+def _enforce_manual_refresh_only(wb, refresh_connections=None) -> None:
+    refresh_connections = tuple(refresh_connections or ())
+    refresh_connection_names = set()
+    for connection in refresh_connections:
         try:
-            result_connection_name = result_connection.Name
+            refresh_connection_names.add(connection.Name)
         except Exception:
-            result_connection_name = None
+            pass
 
     try:
         connection_count = wb.Connections.Count
@@ -116,14 +138,12 @@ def _enforce_manual_refresh_only(wb, result_connection=None) -> None:
         except Exception:
             connection_name = ""
 
-        is_result_connection = (
-            result_connection is not None
-            and (
-                connection is result_connection
-                or (result_connection_name is not None and connection_name == result_connection_name)
-            )
+        is_refresh_connection = any(
+            connection is refresh_connection for refresh_connection in refresh_connections
+        ) or (
+            connection_name != "" and connection_name in refresh_connection_names
         )
-        if is_result_connection:
+        if is_refresh_connection:
             _enable_manual_result_refresh(connection)
         else:
             _disable_automatic_connection_refresh(connection)
@@ -134,6 +154,58 @@ def _delete_result_table_if_exists(result_ws) -> None:
         result_ws.ListObjects("tblTrinoResult").Delete()
     except Exception:
         pass
+
+
+def _delete_schema_table_if_exists(schema_ws) -> None:
+    try:
+        schema_ws.ListObjects(SCHEMA_TABLE_NAME).Delete()
+    except Exception:
+        pass
+
+
+def _create_power_query_table(ws, *, table_name: str, query_name: str, destination_address: str):
+    destination = ws.Range(destination_address)
+    connection_string = (
+        "OLEDB;Provider=Microsoft.Mashup.OleDb.1;"
+        "Data Source=$Workbook$;"
+        f"Location={query_name};"
+        'Extended Properties=""'
+    )
+
+    list_object = ws.ListObjects.Add(
+        XL_SRC_EXTERNAL,
+        connection_string,
+        None,
+        XL_YES,
+        destination,
+    )
+
+    list_object.Name = table_name
+    try:
+        list_object.TableStyle = "TableStyleMedium4"
+    except Exception:
+        pass
+
+    query_table = list_object.QueryTable
+    query_table.CommandType = XL_CMD_SQL
+    query_table.CommandText = f"SELECT * FROM [{query_name}]"
+    for attr_name, value in (
+        ("BackgroundQuery", False),
+        ("RefreshOnFileOpen", False),
+        ("RefreshPeriod", 0),
+        ("EnableRefresh", True),
+        ("SaveData", True),
+        ("PreserveFormatting", True),
+        ("PreserveColumnInfo", True),
+        ("AdjustColumnWidth", True),
+        ("RefreshStyle", XL_OVERWRITE_CELLS),
+    ):
+        _safe_set_attr(query_table, attr_name, value)
+
+    try:
+        return query_table.WorkbookConnection
+    except Exception:
+        return None
 
 
 def _write_result_table_creation_note(result_ws, exc: Exception) -> None:
@@ -163,69 +235,108 @@ def _try_create_result_table(wb, sheet_prefix: str = "Trino"):
 
     _delete_result_table_if_exists(result_ws)
 
-    destination = result_ws.Range("A5")
     result_ws.Range("A5:Z500").Clear()
 
-    connection_string = (
-        "OLEDB;Provider=Microsoft.Mashup.OleDb.1;"
-        "Data Source=$Workbook$;"
-        "Location=TrinoResult;"
-        'Extended Properties=""'
+    return _create_power_query_table(
+        result_ws,
+        table_name="tblTrinoResult",
+        query_name="TrinoResult",
+        destination_address="A5",
     )
 
-    list_object = result_ws.ListObjects.Add(
-        XL_SRC_EXTERNAL,
-        connection_string,
-        None,
-        XL_YES,
-        destination,
+
+def _try_create_schema_table(wb, sheet_prefix: str = "Trino"):
+    schema_sheet_name = client_sheet_names(sheet_prefix).schema
+    schema_ws = wb.Worksheets(schema_sheet_name)
+
+    _delete_schema_table_if_exists(schema_ws)
+    schema_ws.Range("A1:Z500").Clear()
+
+    schema_connection = _create_power_query_table(
+        schema_ws,
+        table_name=SCHEMA_TABLE_NAME,
+        query_name=SCHEMA_QUERY_NAME,
+        destination_address="A1",
     )
 
-    list_object.Name = "tblTrinoResult"
     try:
-        list_object.TableStyle = "TableStyleMedium4"
+        schema_ws.Visible = XL_SHEET_HIDDEN
     except Exception:
         pass
 
-    query_table = list_object.QueryTable
-    query_table.CommandType = XL_CMD_SQL
-    query_table.CommandText = "SELECT * FROM [TrinoResult]"
-    for attr_name, value in (
-        ("BackgroundQuery", False),
-        ("RefreshOnFileOpen", False),
-        ("RefreshPeriod", 0),
-        ("EnableRefresh", True),
-        ("SaveData", True),
-        ("PreserveFormatting", True),
-        ("PreserveColumnInfo", True),
-        ("AdjustColumnWidth", True),
-        ("RefreshStyle", XL_OVERWRITE_CELLS),
-    ):
-        _safe_set_attr(query_table, attr_name, value)
+    return schema_connection
 
-    result_connection = None
+
+def _add_schema_format_names(wb, sheet_prefix: str) -> None:
+    schema_sheet_name = _quote_excel_sheet_name(client_sheet_names(sheet_prefix).schema)
+    for name in (SCHEMA_COLUMN_NAME_RANGE_NAME, SCHEMA_EXCEL_FORMAT_RANGE_NAME):
+        _delete_name_if_exists(wb, name)
+
     try:
-        result_connection = query_table.WorkbookConnection
+        wb.Names.Add(Name=SCHEMA_COLUMN_NAME_RANGE_NAME, RefersTo=f"={schema_sheet_name}!$A:$A")
     except Exception:
         pass
 
-    if result_connection is not None:
-        _enable_manual_result_refresh(result_connection)
+    try:
+        wb.Names.Add(Name=SCHEMA_EXCEL_FORMAT_RANGE_NAME, RefersTo=f"={schema_sheet_name}!$C:$C")
+    except Exception:
+        pass
 
-    return result_connection
+
+def _add_temporal_number_format_rule(target_range, formula: str, number_format: str) -> None:
+    try:
+        condition = target_range.FormatConditions.Add(Type=XL_EXPRESSION, Formula1=formula)
+        condition.NumberFormat = number_format
+        condition.StopIfTrue = False
+    except Exception:
+        pass
+
+
+def _apply_temporal_result_formats(result_ws) -> None:
+    target_range = result_ws.Range(RESULT_TEMPORAL_FORMAT_RANGE)
+    try:
+        target_range.FormatConditions.Delete()
+    except Exception:
+        pass
+
+    _add_temporal_number_format_rule(
+        target_range,
+        f'=COUNTIFS({SCHEMA_COLUMN_NAME_RANGE_NAME},A$5,{SCHEMA_EXCEL_FORMAT_RANGE_NAME},"date")>0',
+        "dd.mm.yyyy",
+    )
+    _add_temporal_number_format_rule(
+        target_range,
+        f'=OR(COUNTIFS({SCHEMA_COLUMN_NAME_RANGE_NAME},A$5,{SCHEMA_EXCEL_FORMAT_RANGE_NAME},"datetime")>0,COUNTIFS({SCHEMA_COLUMN_NAME_RANGE_NAME},A$5,{SCHEMA_EXCEL_FORMAT_RANGE_NAME},"datetimezone")>0)',
+        "dd.mm.yyyy hh:mm",
+    )
+    _add_temporal_number_format_rule(
+        target_range,
+        f'=COUNTIFS({SCHEMA_COLUMN_NAME_RANGE_NAME},A$5,{SCHEMA_EXCEL_FORMAT_RANGE_NAME},"time")>0',
+        "hh:mm:ss",
+    )
 
 
 def install_power_query_into_workbook(wb, sheet_prefix: str = "Trino") -> None:
-    _add_power_queries(wb)
+    _add_power_queries(wb, include_schema=True)
 
-    result_connection = None
+    refresh_connections = []
     try:
+        schema_connection = _try_create_schema_table(wb, sheet_prefix=sheet_prefix)
+        if schema_connection is not None:
+            refresh_connections.append(schema_connection)
+        _add_schema_format_names(wb, sheet_prefix=sheet_prefix)
+
         result_connection = _try_create_result_table(wb, sheet_prefix=sheet_prefix)
+        if result_connection is not None:
+            refresh_connections.append(result_connection)
+
+        result_ws = wb.Worksheets(client_sheet_names(sheet_prefix).result)
+        _apply_temporal_result_formats(result_ws)
     except Exception as exc:
         result_ws = wb.Worksheets(client_sheet_names(sheet_prefix).result)
         _write_result_table_creation_note(result_ws, exc)
     finally:
-        _enforce_manual_refresh_only(wb, result_connection=result_connection)
+        _enforce_manual_refresh_only(wb, refresh_connections=refresh_connections)
 
 
 def _delete_vba_module_if_exists(wb, module_name: str) -> None:
@@ -295,7 +406,7 @@ def install_advanced_client_automation(
     sheet_prefix: str = "Trino",
     macro_workbook_name: str | None = None,
 ) -> None:
-    _add_power_queries(wb)
+    _add_power_queries(wb, include_schema=False)
     _enforce_manual_refresh_only(wb)
     _install_advanced_vba_module(wb)
     _install_advanced_button(wb, sheet_prefix=sheet_prefix, macro_workbook_name=macro_workbook_name)

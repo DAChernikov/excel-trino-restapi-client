@@ -224,6 +224,18 @@ def _add_result_sheet(wb, sheet_prefix: str):
     return ws
 
 
+def _add_schema_sheet(wb, sheet_prefix: str):
+    ws = wb.create_sheet(client_sheet_names(sheet_prefix).schema)
+    ws.sheet_state = "hidden"
+    ws.sheet_properties.tabColor = COLORS["gray"]
+    ws["A1"] = "TrinoResultSchema будет загружен сюда через Power Query."
+    ws["A1"].font = Font(name="Aptos", size=10, italic=True, color=COLORS["dark_gray"])
+    ws.column_dimensions["A"].width = 48
+    ws.column_dimensions["B"].width = 34
+    ws.column_dimensions["C"].width = 18
+    return ws
+
+
 def _add_help_sheet(wb, sheet_prefix: str):
     ws = wb.create_sheet(client_sheet_names(sheet_prefix).help)
     ws.sheet_properties.tabColor = COLORS["blue"]
@@ -235,7 +247,7 @@ def _add_help_sheet(wb, sheet_prefix: str):
     return ws
 
 
-def install_client_ui(wb, sheet_prefix: str = "Trino") -> None:
+def install_client_ui(wb, sheet_prefix: str = "Trino", include_schema_sheet: bool = True) -> None:
     for table_name in (
         CONFIG_TABLE.name,
         EXTRA_CREDENTIALS_TABLE.name,
@@ -247,11 +259,13 @@ def install_client_ui(wb, sheet_prefix: str = "Trino") -> None:
     _add_config_sheet(wb, sheet_prefix)
     _add_query_sheet(wb, sheet_prefix)
     _add_result_sheet(wb, sheet_prefix)
+    if include_schema_sheet:
+        _add_schema_sheet(wb, sheet_prefix)
     _add_help_sheet(wb, sheet_prefix)
 
 
 def install_advanced_client_ui(wb, sheet_prefix: str = "Trino") -> None:
-    install_client_ui(wb, sheet_prefix=sheet_prefix)
+    install_client_ui(wb, sheet_prefix=sheet_prefix, include_schema_sheet=False)
     _delete_table_if_exists(wb, ADVANCED_TARGET_TABLE.name)
     _add_advanced_query_controls(wb, sheet_prefix=sheet_prefix)
 

@@ -22,6 +22,7 @@ def test_create_workbook_ui_creates_client_sheets_and_tables(tmp_path: Path) -> 
     workbook = load_workbook(output)
     names = client_sheet_names()
     assert workbook.sheetnames == list(names.all)
+    assert workbook[names.schema].sheet_state == "hidden"
     assert set(REQUIRED_TABLE_NAMES).issubset(_table_names(output))
     assert workbook[names.config]["A1"].value == "Trino REST API Client - Config"
     assert workbook[names.config]["A5"].value == "Параметр"
@@ -39,6 +40,7 @@ def test_create_workbook_ui_creates_client_sheets_and_tables(tmp_path: Path) -> 
     assert workbook[names.result]["A1"].value == "Trino REST API Client - Result"
     assert "область результата постоянно перезатирается" in workbook[names.result]["A2"].value
     assert workbook[names.result]["A5"].value == "В preview-книге на Unix есть только UI-таблицы. Для встраивания Power Query используйте WindowsOS."
+    assert workbook[names.schema]["A1"].value == "TrinoResultSchema будет загружен сюда через Power Query."
 
 
 def test_install_client_ui_preserves_existing_sheet(tmp_path: Path) -> None:
@@ -57,6 +59,7 @@ def test_install_client_ui_preserves_existing_sheet(tmp_path: Path) -> None:
     assert "Existing" in installed.sheetnames
     assert installed["Existing"]["A1"].value == "keep me"
     assert set(client_sheet_names().all).issubset(installed.sheetnames)
+    assert installed[client_sheet_names().schema].sheet_state == "hidden"
     assert set(REQUIRED_TABLE_NAMES).issubset(_table_names(output))
 
 
@@ -67,6 +70,7 @@ def test_create_advanced_workbook_ui_adds_target_sheet_table(tmp_path: Path) -> 
 
     workbook = load_workbook(output)
     names = client_sheet_names()
+    assert names.schema not in workbook.sheetnames
     assert "tblTrinoAdvancedTarget" in _table_names(output)
     assert workbook[names.query]["A8"].value == "Advanced выгрузка результата"
     assert workbook[names.query]["A11"].value == "Параметр"
