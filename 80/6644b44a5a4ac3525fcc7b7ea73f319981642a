@@ -1,0 +1,14 @@
+src/trino_excel_client/__init__.py
+  h_29db3271bff073 4
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "806644b44a5a4ac3525fcc7b7ea73f319981642a",
+  "prompts": {},
+  "humans": {
+    "h_29db3271bff073": {
+      "author": "DAChernikov <129949710+DAChernikov@users.noreply.github.com>"
+    }
+  }
+}
