@@ -4,9 +4,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "trino-excel-client"
-version = "0.1.0"
+version = "0.2.0"
 description = "Excel Power Query client generator for Trino REST API"
 readme = "README.md"
+license = { file = "LICENSE" }
 requires-python = ">=3.10"
 dependencies = [
     "openpyxl>=3.0.10",

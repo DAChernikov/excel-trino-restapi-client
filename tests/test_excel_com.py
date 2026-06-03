@@ -446,7 +446,7 @@ def test_com_create_reuses_openpyxl_ui_and_installs_power_query(tmp_path: Path, 
     assert result_table.QueryTable.EnableRefresh is True
     assert result_table.QueryTable.SaveData is True
     assert result_table.TableStyle == "TableStyleMedium4"
-    assert result_table.QueryTable.PreserveFormatting is False
+    assert result_table.QueryTable.PreserveFormatting is True
     assert result_table.QueryTable.PreserveColumnInfo is True
     assert result_table.QueryTable.AdjustColumnWidth is True
     assert result_table.QueryTable.RefreshStyle == excel_com.XL_OVERWRITE_CELLS
@@ -536,7 +536,11 @@ def test_com_create_advanced_xlsm_installs_vba_and_button(tmp_path: Path, monkey
     assert 'formula = formula & "    Config = qConfig,' not in component.CodeModule.code
     assert 'formula = formula & "        qExtraCredentials,' not in component.CodeModule.code
     assert "PrepareResultWorksheet resultWs\n    UpsertResultQuery queryName, sqlText" in component.CodeModule.code
+    assert "resultTable.QueryTable.Refresh BackgroundQuery:=False\n    FormatResultTable resultTable" in component.CodeModule.code
     assert 'lo.TableStyle = "TableStyleMedium4"' in component.CodeModule.code
+    assert "Private Sub FormatResultTable(ByVal lo As ListObject)" in component.CodeModule.code
+    assert "lo.HeaderRowRange" in component.CodeModule.code
+    assert ".Font.Italic = False" in component.CodeModule.code
     assert ".PreserveFormatting = True" in component.CodeModule.code
     assert ".PreserveColumnInfo = True" in component.CodeModule.code
     assert ".RefreshStyle = 0" in component.CodeModule.code

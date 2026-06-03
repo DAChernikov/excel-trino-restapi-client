@@ -43,6 +43,7 @@ Public Sub TrinoRunQueryToSheet()
     Set resultTable = CreateResultTable(resultWs, queryName, tableName)
 
     resultTable.QueryTable.Refresh BackgroundQuery:=False
+    FormatResultTable resultTable
     MsgBox "Результат выгружен на лист '" & targetSheetName & "'.", vbInformation, "Trino Excel Client"
     Exit Sub
 
@@ -361,6 +362,44 @@ Private Function CreateResultTable(ByVal resultWs As Worksheet, ByVal queryName 
 
     Set CreateResultTable = lo
 End Function
+
+Private Sub FormatResultTable(ByVal lo As ListObject)
+    On Error Resume Next
+
+    lo.TableStyle = "TableStyleMedium4"
+    lo.ShowTableStyleFirstColumn = False
+    lo.ShowTableStyleLastColumn = False
+    lo.ShowTableStyleColumnStripes = False
+    lo.ShowTableStyleRowStripes = True
+
+    With lo.Range
+        .Font.Name = "Calibri"
+        .Font.Size = 11
+        .Font.Italic = False
+    End With
+
+    With lo.HeaderRowRange
+        .Font.Bold = True
+        .Font.Italic = False
+        .Font.Color = RGB(255, 255, 255)
+        .Interior.Color = RGB(244, 176, 80)
+        .HorizontalAlignment = -4131
+        .VerticalAlignment = -4108
+        .WrapText = False
+    End With
+
+    If Not lo.DataBodyRange Is Nothing Then
+        With lo.DataBodyRange
+            .Font.Bold = False
+            .Font.Italic = False
+            .HorizontalAlignment = -4131
+            .VerticalAlignment = -4108
+            .WrapText = False
+        End With
+    End If
+
+    On Error GoTo 0
+End Sub
 
 Private Function StableToken(ByVal value As String) As String
     Dim idx As Long
